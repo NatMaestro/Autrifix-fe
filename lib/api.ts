@@ -24,6 +24,7 @@ function shouldAttachAuth(url: string | undefined) {
     "auth/send-otp",
     "auth/verify-otp",
     "auth/register",
+    "auth/google",
     "auth/login",
     "auth/token",
     "auth/refresh-token",

@@ -3,6 +3,8 @@ export const API_BASE =
 
 export const ENABLE_OTP_BYPASS = process.env.NEXT_PUBLIC_ENABLE_OTP_BYPASS === "true";
 
+export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+
 export const ISSUE_QUICK_TAGS = [
   { id: "engine", label: "Engine issue", icon: "engine" as const },
   { id: "tire", label: "Flat tire", icon: "tire" as const },

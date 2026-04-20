@@ -22,7 +22,7 @@ export default function DriverLayout({
   useEffect(() => {
     if (!hydrated) return;
     if (!access) {
-      router.replace("/auth/phone");
+      router.replace("/auth/login");
       return;
     }
     if (user?.role === "mechanic") {

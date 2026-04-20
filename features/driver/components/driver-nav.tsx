@@ -157,7 +157,7 @@ export function DriverNav() {
               onClick={() => {
                 setProfileMenuOpen(false);
                 logout();
-                router.replace("/auth/phone");
+                router.replace("/auth/login");
               }}
               className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-red-200 hover:bg-red-500/15"
             >

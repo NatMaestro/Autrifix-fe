@@ -5,7 +5,7 @@ export type UserRole = "driver" | "mechanic" | "admin";
 
 export type AuthUser = {
   id: string;
-  phone: string;
+  phone: string | null;
   role: UserRole;
   first_name?: string;
   last_name?: string;
@@ -18,9 +18,7 @@ type AuthState = {
   access: string | null;
   refresh: string | null;
   user: AuthUser | null;
-  pendingPhone: string | null;
   setHydrated: (hydrated: boolean) => void;
-  setPendingPhone: (phone: string | null) => void;
   setTokens: (access: string, refresh: string) => void;
   setSession: (access: string, refresh: string, user: AuthUser) => void;
   patchUser: (patch: Partial<AuthUser>) => void;
@@ -34,24 +32,19 @@ export const useAuthStore = create<AuthState>()(
       access: null,
       refresh: null,
       user: null,
-      pendingPhone: null,
       setHydrated: (hydrated) => set({ hydrated }),
-      setPendingPhone: (pendingPhone) => set({ pendingPhone }),
       setTokens: (access, refresh) => set({ access, refresh }),
-      setSession: (access, refresh, user) =>
-        set({ access, refresh, user, pendingPhone: null }),
+      setSession: (access, refresh, user) => set({ access, refresh, user }),
       patchUser: (patch) =>
         set((s) =>
           s.user ? { user: { ...s.user, ...patch } } : { user: null },
         ),
-      logout: () =>
-        set({ access: null, refresh: null, user: null, pendingPhone: null }),
+      logout: () => set({ access: null, refresh: null, user: null }),
     }),
     {
       name: "autrifix-auth",
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
-      },
+      // Avoid SSR reading localStorage / mismatched HTML — rehydrate from AppProviders on the client.
+      skipHydration: true,
     },
   ),
 );

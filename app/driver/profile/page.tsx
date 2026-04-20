@@ -65,7 +65,7 @@ export default function DriverProfilePage() {
     return "Marcus Thorne";
   }, [user]);
 
-  const phone = user?.phone ?? "—";
+  const loginId = user?.phone ?? user?.email ?? "—";
   const email = user?.email ?? null;
 
   function onAvatarSelected(file: File | null) {
@@ -170,7 +170,7 @@ export default function DriverProfilePage() {
               type="button"
               onClick={() => {
                 logout();
-                router.replace("/auth/phone");
+                router.replace("/auth/login");
               }}
               className="flex w-full items-center justify-between text-left"
             >
@@ -249,8 +249,10 @@ export default function DriverProfilePage() {
                     </p>
                     <p className="mt-2 text-sm text-slate-700 dark:text-white/75">{displayName}</p>
                     <p className="mt-1 text-sm text-slate-600 dark:text-white/60">
-                      {phone}
-                      {email ? ` · ${email}` : ""}
+                      {user?.phone ? `Phone ${user.phone}` : null}
+                      {user?.phone && email ? " · " : null}
+                      {email ? `Email ${email}` : null}
+                      {!user?.phone && !email ? loginId : null}
                     </p>
                     <div className="mt-4 rounded-2xl border border-slate-300/70 bg-white p-3 dark:border-white/10 dark:bg-white/5">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-white/45">
@@ -327,9 +329,9 @@ export default function DriverProfilePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push("/auth/phone")}
+                        onClick={() => router.push("/auth/login")}
                       >
-                        Change login phone
+                        Change sign-in
                       </Button>
                     </div>
                   </div>
@@ -339,15 +341,15 @@ export default function DriverProfilePage() {
                       Security
                     </p>
                     <p className="mt-2 text-sm text-amber-900 dark:text-amber-100/85">
-                      Password change is coming soon. For now, access is managed via phone OTP.
+                      Password reset from the app is coming soon. Contact support if you are locked out.
                     </p>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="mt-3"
-                      onClick={() => toast.info("Password change is coming soon.")}
+                      onClick={() => toast.info("Self-serve password reset is coming soon.")}
                     >
-                      Request password support
+                      Learn more
                     </Button>
                   </div>
                 </div>

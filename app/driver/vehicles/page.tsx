@@ -229,7 +229,7 @@ export default function VehiclesPage() {
             Could not load vehicles: {(error as Error)?.message ?? "Unknown error"}
           </p>
           <p className="mt-2 text-xs text-red-100/70">
-            If you are not logged in as a driver, open <span className="text-white">/auth/phone</span>.
+            If you are not logged in as a driver, open <span className="text-white">/auth/login</span>.
           </p>
         </GlassCard>
       ) : null}

@@ -212,7 +212,9 @@ export default function DriverHomePage() {
       <div className="pointer-events-none absolute bottom-28 left-4 right-4 z-[55] flex justify-center sm:hidden">
         <div className="pointer-events-auto rounded-2xl border border-slate-300/70 bg-white/90 px-4 py-2 text-center text-xs text-slate-700 backdrop-blur-md dark:border-white/10 dark:bg-black/50 dark:text-white/70">
           Signed in as{" "}
-          <span className="font-medium text-[#00E676]">{user?.phone}</span>
+          <span className="font-medium text-[#00E676]">
+            {user?.phone ?? user?.email ?? "—"}
+          </span>
         </div>
       </div>
 

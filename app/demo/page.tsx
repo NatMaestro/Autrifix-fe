@@ -15,7 +15,7 @@ export default function DemoMapPage() {
         <GlassCard className="!p-3 text-xs text-white/80">
           Public preview · no account
         </GlassCard>
-        <Link href="/auth/phone">
+        <Link href="/auth/login">
           <Button size="sm">Sign in</Button>
         </Link>
       </div>

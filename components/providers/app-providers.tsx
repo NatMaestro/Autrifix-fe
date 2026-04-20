@@ -2,10 +2,18 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 
+import { useAuthStore } from "@/store/auth-store";
+
 export function AppProviders({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    void Promise.resolve(useAuthStore.persist.rehydrate()).finally(() => {
+      useAuthStore.getState().setHydrated(true);
+    });
+  }, []);
+
   const [client] = useState(
     () =>
       new QueryClient({

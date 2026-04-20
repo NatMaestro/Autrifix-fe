@@ -25,7 +25,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!access) {
-      router.replace("/auth/phone");
+      router.replace("/auth/login");
     }
   }, [access, router]);
 
@@ -37,7 +37,7 @@ export default function ProfilePage() {
     e.preventDefault();
     const accessToken = access;
     if (!accessToken) {
-      router.replace("/auth/phone");
+      router.replace("/auth/login");
       return;
     }
     const [firstName = "", ...rest] = fullName.trim().split(/\s+/);

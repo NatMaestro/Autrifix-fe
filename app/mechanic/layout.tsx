@@ -40,7 +40,7 @@ export default function MechanicLayout({
   useEffect(() => {
     if (!hydrated) return;
     if (!access) {
-      router.replace("/auth/phone");
+      router.replace("/auth/login");
     }
   }, [hydrated, access, router]);
 
@@ -105,7 +105,7 @@ export default function MechanicLayout({
             type="button"
             onClick={() => {
               logout();
-              router.replace("/auth/phone");
+              router.replace("/auth/login");
             }}
             className="inline-flex w-full items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-left text-red-200"
           >

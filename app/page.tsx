@@ -27,7 +27,7 @@ export default function HomePage() {
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-white/65 md:text-base">
           Premium vehicle assistance, maintenance, and emergency services at your fingertips.
         </p>
-        <Link href="/auth/phone" className="mt-12 block">
+        <Link href="/auth/login" className="mt-12 block">
           <Button size="lg" className="w-full text-base">
             Continue
           </Button>
