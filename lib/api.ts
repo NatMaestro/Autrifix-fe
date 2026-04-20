@@ -16,9 +16,25 @@ function getRefresh() {
   return useAuthStore.getState().refresh;
 }
 
+function shouldAttachAuth(url: string | undefined) {
+  if (!url) return true;
+  // These endpoints are intentionally AllowAny on the backend.
+  // Attaching a stale/invalid JWT can cause JWTAuthentication to reject the request before the view runs.
+  const anonymousAuthPaths = [
+    "auth/send-otp",
+    "auth/verify-otp",
+    "auth/register",
+    "auth/login",
+    "auth/token",
+    "auth/refresh-token",
+    "health/",
+  ];
+  return !anonymousAuthPaths.some((p) => url.includes(p));
+}
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAccess();
-  if (token) {
+  if (token && shouldAttachAuth(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -47,7 +63,8 @@ api.interceptors.response.use(
       error.response?.status !== 401 ||
       original?._retry ||
       !original ||
-      original.url?.includes("/auth/refresh-token/")
+      original.url?.includes("/auth/refresh-token/") ||
+      !shouldAttachAuth(original.url)
     ) {
       return Promise.reject(error);
     }

@@ -1,7 +1,7 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
 
-export const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+export const ENABLE_OTP_BYPASS = process.env.NEXT_PUBLIC_ENABLE_OTP_BYPASS === "true";
 
 export const ISSUE_QUICK_TAGS = [
   { id: "engine", label: "Engine issue", icon: "engine" as const },

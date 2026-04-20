@@ -1,26 +1,129 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #030712;
-  --foreground: #f4f8ff;
-}
-
-html.light {
   --background: #e8f0ff;
   --foreground: #0b1f3a;
 }
 
-html.light body {
-  color: var(--foreground);
-  background: linear-gradient(180deg, #e8f0ff 0%, #dbeafe 100%);
+html.dark {
+  --background: #030712;
+  --foreground: #f4f8ff;
 }
 
 body {
   color: var(--foreground);
+  background: linear-gradient(180deg, #e8f0ff 0%, #dbeafe 100%);
+}
+
+html.dark body {
+  color: var(--foreground);
   background: var(--background);
+}
+
+body {
   font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/*
+  Light-mode safety net:
+  many screens still use dark-first utility classes (text-white/*).
+  Override those classes in light mode so content remains readable until
+  each page is fully tokenized.
+*/
+html.light .text-white {
+  color: rgb(15 23 42) !important;
+}
+html.light .text-white\/90 {
+  color: rgb(15 23 42 / 0.9) !important;
+}
+html.light .text-white\/80 {
+  color: rgb(15 23 42 / 0.8) !important;
+}
+html.light .text-white\/75 {
+  color: rgb(15 23 42 / 0.75) !important;
+}
+html.light .text-white\/70 {
+  color: rgb(30 41 59 / 0.78) !important;
+}
+html.light .text-white\/65 {
+  color: rgb(30 41 59 / 0.72) !important;
+}
+html.light .text-white\/60 {
+  color: rgb(30 41 59 / 0.68) !important;
+}
+html.light .text-white\/55 {
+  color: rgb(30 41 59 / 0.62) !important;
+}
+html.light .text-white\/50 {
+  color: rgb(51 65 85 / 0.56) !important;
+}
+html.light .text-white\/45 {
+  color: rgb(51 65 85 / 0.5) !important;
+}
+html.light .text-white\/40 {
+  color: rgb(71 85 105 / 0.45) !important;
+}
+
+/* Light-mode card normalization for legacy dark utility classes */
+html.light .border-white\/10 {
+  border-color: rgb(148 163 184 / 0.45) !important;
+}
+html.light .bg-black\/50,
+html.light .bg-black\/45,
+html.light .bg-black\/40,
+html.light .bg-black\/30,
+html.light .bg-black\/25 {
+  background-color: rgb(255 255 255 / 0.82) !important;
+}
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
+  background-color: rgb(255 255 255 / 0.78) !important;
+}
+html.light .bg-\[\#253247\]\/90,
+html.light .bg-\[\#273246\]\/90,
+html.light .bg-\[\#1f2c3f\]\/90,
+html.light .bg-\[\#233146\]\/90,
+html.light .bg-\[\#203046\]\/90,
+html.light .bg-\[\#212d40\]\/90,
+html.light .bg-\[\#151f30\]\/80,
+html.light .bg-\[\#1b2739\]\/90,
+html.light .bg-\[\#1b2739\]\/85,
+html.light .bg-\[\#1b273a\]\/85,
+html.light .bg-\[\#1b273a\]\/80,
+html.light .bg-\[\#1a2437\]\/85,
+html.light .bg-\[\#263247\]\/85,
+html.light .bg-\[\#212c3d\],
+html.light .bg-\[\#202c3e\]\/90,
+html.light .bg-\[\#122d4c\]\/85,
+html.light .bg-\[\#17263a\],
+html.light .bg-\[\#1c2b42\],
+html.light .bg-\[\#1c2b42\]\/95,
+html.light .bg-\[\#1d2b3d\],
+html.light .bg-\[\#1c2b3d\],
+html.light .bg-\[\#15243c\]\/95,
+html.light .bg-\[\#121f35\],
+html.light .bg-\[\#121f35\]\/85,
+html.light .bg-\[\#111a2b\],
+html.light .bg-\[\#111b2b\]\/95,
+html.light .bg-\[\#101a2a\]\/95,
+html.light .bg-\[\#0f1727\],
+html.light .bg-\[\#0e1626\] {
+  background-color: rgb(255 255 255 / 0.9) !important;
+}
+
+.leaflet-autrifix-map {
+  background: #0b1f3a;
+}
+html.light .leaflet-autrifix-map {
+  background: #dbeafe;
+}
+
+.leaflet-container {
+  font: inherit;
 }
 
 @layer utilities {

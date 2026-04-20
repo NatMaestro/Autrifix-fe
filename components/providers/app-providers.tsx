@@ -24,12 +24,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
         {children}
         <Toaster
-          theme="dark"
+          theme="system"
           position="top-center"
           toastOptions={{
             classNames: {
               toast:
-                "backdrop-blur-xl border border-white/10 bg-[#0B1F3A]/90 text-white",
+                "backdrop-blur-xl border border-slate-300/60 bg-white/95 text-slate-900 dark:border-white/10 dark:bg-[#0B1F3A]/90 dark:text-white",
             },
           }}
         />
