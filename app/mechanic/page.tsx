@@ -172,11 +172,30 @@ export default function MechanicHomePage() {
     setIncoming(Boolean(visibleIncomingRequest));
   }, [online, visibleIncomingRequest]);
 
-  function setAvailability(next: boolean) {
+  async function resolveLocationForOnline() {
+    const savedLat = typeof profile?.base_latitude === "number" ? profile.base_latitude : null;
+    const savedLng = typeof profile?.base_longitude === "number" ? profile.base_longitude : null;
+    if (savedLat !== null && savedLng !== null) return { lat: savedLat, lng: savedLng };
+    if (coords) return coords;
+    if (!navigator.geolocation) return null;
+
+    const fresh = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000 },
+      );
+    });
+    if (fresh) setCoords(fresh);
+    return fresh;
+  }
+
+  async function setAvailability(next: boolean) {
     if (next === online) return;
     if (next) {
-      const onlineLat = typeof profile?.base_latitude === "number" ? profile.base_latitude : coords?.lat;
-      const onlineLng = typeof profile?.base_longitude === "number" ? profile.base_longitude : coords?.lng;
+      const resolved = await resolveLocationForOnline();
+      const onlineLat = resolved?.lat;
+      const onlineLng = resolved?.lng;
       if (typeof onlineLat !== "number" || typeof onlineLng !== "number") {
         toast.error("Enable location first so drivers can find you on the map.");
         return;
@@ -246,7 +265,9 @@ export default function MechanicHomePage() {
         <div className="rounded-2xl border border-white/10 bg-[#212c3d] p-2">
           <button
             type="button"
-            onClick={() => setAvailability(true)}
+            onClick={() => {
+              void setAvailability(true);
+            }}
             className={`rounded-xl px-6 py-2 text-sm font-semibold ${
               online ? "bg-[#7ef8b1] text-[#153227]" : "text-white/55"
             }`}
@@ -255,7 +276,9 @@ export default function MechanicHomePage() {
           </button>
           <button
             type="button"
-            onClick={() => setAvailability(false)}
+            onClick={() => {
+              void setAvailability(false);
+            }}
             className={`rounded-xl px-6 py-2 text-sm font-semibold ${
               !online ? "bg-[#7ef8b1] text-[#153227]" : "text-white/55"
             }`}
