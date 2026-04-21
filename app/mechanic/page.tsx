@@ -174,6 +174,14 @@ export default function MechanicHomePage() {
 
   function setAvailability(next: boolean) {
     if (next === online) return;
+    if (next) {
+      const onlineLat = typeof profile?.base_latitude === "number" ? profile.base_latitude : coords?.lat;
+      const onlineLng = typeof profile?.base_longitude === "number" ? profile.base_longitude : coords?.lng;
+      if (typeof onlineLat !== "number" || typeof onlineLng !== "number") {
+        toast.error("Enable location first so drivers can find you on the map.");
+        return;
+      }
+    }
     setOnline(next);
     if (next) {
       setOnlineSinceMs(Date.now());

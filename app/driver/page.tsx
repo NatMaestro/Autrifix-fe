@@ -75,13 +75,39 @@ export default function DriverHomePage() {
   const mechanicsForMap = liveMechanics ?? nearby?.mechanics ?? [];
   const nearbyCount =
     liveMechanics !== null ? liveMechanics.length : nearby?.nearby_mechanics_count ?? 0;
-  const liveMechanicMarkers = mechanicsForMap.slice(0, 25).map((m) => ({
-    id: m.id,
-    lat: m.latitude,
-    lng: m.longitude,
-    label: m.business_name || "Mechanic",
-    subtitle: `Mechanic · ${m.rating_avg.toFixed(1)} ★ · ${m.distance_km.toFixed(1)} km away`,
-  }));
+  const liveMechanicMarkers = useMemo(() => {
+    const buckets = new Map<string, number>();
+    return mechanicsForMap.slice(0, 25).map((m) => {
+      const key = `${m.latitude.toFixed(5)}:${m.longitude.toFixed(5)}`;
+      const overlapIndex = buckets.get(key) ?? 0;
+      buckets.set(key, overlapIndex + 1);
+
+      if (overlapIndex === 0) {
+        return {
+          id: m.id,
+          lat: m.latitude,
+          lng: m.longitude,
+          label: m.business_name || "Mechanic",
+          subtitle: `Mechanic · ${m.rating_avg.toFixed(1)} ★ · ${m.distance_km.toFixed(1)} km away`,
+        };
+      }
+
+      const angle = (overlapIndex * 45 * Math.PI) / 180;
+      const offsetMeters = 10 + overlapIndex * 4;
+      const latMeters = Math.sin(angle) * offsetMeters;
+      const lngMeters = Math.cos(angle) * offsetMeters;
+      const latOffset = latMeters / 111_111;
+      const lngOffset = lngMeters / (111_111 * Math.max(Math.cos((m.latitude * Math.PI) / 180), 0.2));
+
+      return {
+        id: m.id,
+        lat: m.latitude + latOffset,
+        lng: m.longitude + lngOffset,
+        label: m.business_name || "Mechanic",
+        subtitle: `Mechanic · ${m.rating_avg.toFixed(1)} ★ · ${m.distance_km.toFixed(1)} km away`,
+      };
+    });
+  }, [mechanicsForMap]);
 
   const { data: vehicles } = useQuery({
     queryKey: ["vehicles"],
