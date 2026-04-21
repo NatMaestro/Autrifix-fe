@@ -1,0 +1,17 @@
+{
+  "name": "AutriFix",
+  "short_name": "AutriFix",
+  "description": "Roadside assistance — drivers and mechanics on a live map.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#0B1F3A",
+  "icons": [
+    {
+      "src": "/brand/AutriFix-logo-n.png",
+      "sizes": "1024x683",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

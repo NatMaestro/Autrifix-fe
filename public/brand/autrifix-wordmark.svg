@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none" role="img" aria-label="AutriFix">
+  <defs>
+    <linearGradient id="afg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#00E676"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="10" fill="url(#afg)"/>
+  <text x="20" y="28" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" font-size="22" fill="#0B1F3A">A</text>
+  <text x="50" y="27" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="600" font-size="17" fill="#ffffff">Autri</text>
+  <text x="98" y="27" font-family="ui-sans-serif, system-ui, sans-serif" font-weight="600" font-size="17" fill="#00E676">Fix</text>
+</svg>
