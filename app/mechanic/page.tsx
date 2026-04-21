@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, TrendingUp, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -22,7 +22,7 @@ export default function MechanicHomePage() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [dismissedRequestIds, setDismissedRequestIds] = useState<string[]>([]);
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null);
-  const [onlineSinceMs, setOnlineSinceMs] = useState<number | null>(null);
+  const lastAlertedRequestId = useRef<string | null>(null);
   const setStatus = useRealtimeStore((s) => s.setStatus);
   const qc = useQueryClient();
 
@@ -53,20 +53,22 @@ export default function MechanicHomePage() {
   const cancelledJobs = jobs.filter((j) => j.status === "cancelled").length;
   const completionRate = jobs.length ? Math.round((completedJobs / jobs.length) * 100) : 0;
   const displayName = profile?.business_name?.trim() || "Mechanic";
+  const queryCoords =
+    coords ??
+    (typeof profile?.base_latitude === "number" && typeof profile?.base_longitude === "number"
+      ? { lat: profile.base_latitude, lng: profile.base_longitude }
+      : null);
   const nearbyRequestsQ = useQuery({
-    queryKey: ["nearby-open-requests", coords?.lat, coords?.lng],
-    queryFn: () => listNearbyOpenRequests(coords!.lat, coords!.lng, 50),
-    enabled: online && Boolean(coords),
+    queryKey: ["nearby-open-requests", queryCoords?.lat, queryCoords?.lng],
+    queryFn: () => listNearbyOpenRequests(queryCoords!.lat, queryCoords!.lng, 50),
+    enabled: online && Boolean(queryCoords),
     refetchInterval: online ? 12_000 : false,
     staleTime: 5_000,
   });
   const visibleIncomingRequest =
     (nearbyRequestsQ.data ?? []).find((r) => {
       if (dismissedRequestIds.includes(r.id)) return false;
-      if (!onlineSinceMs) return false;
-      const createdMs = new Date(r.created_at).getTime();
-      if (!Number.isFinite(createdMs)) return false;
-      return createdMs >= onlineSinceMs;
+      return true;
     }) ?? null;
   const snoozedActive = typeof snoozedUntil === "number" && Date.now() < snoozedUntil;
   const showIncoming = online && Boolean(visibleIncomingRequest) && !snoozedActive && incoming;
@@ -128,11 +130,6 @@ export default function MechanicHomePage() {
           lng: profile.base_longitude,
         });
       }
-      if (profile.is_available && !onlineSinceMs) {
-        setOnlineSinceMs(Date.now());
-      } else if (!profile.is_available) {
-        setOnlineSinceMs(null);
-      }
     }
   }, [profile]);
 
@@ -141,11 +138,7 @@ export default function MechanicHomePage() {
       setIncoming(false);
       setSnoozedUntil(null);
       setDismissedRequestIds([]);
-      setOnlineSinceMs(null);
       return;
-    }
-    if (!onlineSinceMs) {
-      setOnlineSinceMs(Date.now());
     }
     const requestGeo = () => {
       if (!navigator.geolocation) return;
@@ -162,7 +155,7 @@ export default function MechanicHomePage() {
     requestGeo();
     const id = window.setInterval(requestGeo, 45_000);
     return () => window.clearInterval(id);
-  }, [online, onlineSinceMs]);
+  }, [online]);
 
   useEffect(() => {
     if (!online) {
@@ -203,11 +196,9 @@ export default function MechanicHomePage() {
     }
     setOnline(next);
     if (next) {
-      setOnlineSinceMs(Date.now());
       setDismissedRequestIds([]);
       setSnoozedUntil(null);
     } else {
-      setOnlineSinceMs(null);
       setIncoming(false);
     }
     patchAvailability.mutate(
@@ -236,6 +227,36 @@ export default function MechanicHomePage() {
     );
     setStatus(next ? "live" : "idle");
   }
+
+  useEffect(() => {
+    if (!showIncoming || !visibleIncomingRequest?.id) return;
+    if (lastAlertedRequestId.current === visibleIncomingRequest.id) return;
+    lastAlertedRequestId.current = visibleIncomingRequest.id;
+    try {
+      const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const tone = (start: number, freq: number, gain: number, duration = 0.16) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + start);
+        g.gain.setValueAtTime(0.0001, now + start);
+        g.gain.exponentialRampToValueAtTime(gain, now + start + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(now + start);
+        osc.stop(now + start + duration + 0.03);
+      };
+      tone(0, 880, 0.08);
+      tone(0.2, 1175, 0.08);
+      window.setTimeout(() => void ctx.close(), 700);
+    } catch {
+      // best-effort only
+    }
+  }, [showIncoming, visibleIncomingRequest?.id]);
 
   return (
     <div className="px-4 pt-6">

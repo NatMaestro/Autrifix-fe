@@ -17,8 +17,8 @@ export function AutrifixLogo({ className, size = "md" }: Props) {
       <Image
         src="/brand/AutriFix-logo-n.png"
         alt="AutriFix"
-        width={260}
-        height={140}
+        width={300}
+        height={160}
         priority={size === "lg"}
         className={cn("w-auto object-contain object-left", heightClass[size])}
       />

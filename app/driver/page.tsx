@@ -158,7 +158,7 @@ export default function DriverHomePage() {
     <div className="relative isolate h-dvh overflow-hidden">
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-[60] flex items-start justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
-          <AutrifixLogo size="sm" />
+          <AutrifixLogo size="md" />
           <div className="hidden rounded-2xl border border-slate-300/70 bg-white/85 px-3 py-1.5 text-xs text-slate-700 backdrop-blur-md dark:border-white/10 dark:bg-black/30 dark:text-white/70 sm:block">
             <span className="text-[#00E676]">
               {nearby || liveMechanics !== null ? String(nearbyCount) : "—"}
