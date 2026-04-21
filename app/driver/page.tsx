@@ -1,9 +1,10 @@
 "use client";
 
 import { Car } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo } from "react";
 import { toast } from "sonner";
 
 import { AutrifixLogo } from "@/components/brand/autrifix-logo";
@@ -51,14 +52,23 @@ export default function DriverHomePage() {
     geo.status === "ok"
       ? { lat: geo.lat, lng: geo.lng }
       : FALLBACK;
+  const liveCenter = useMemo(
+    () => ({
+      lat: Number(center.lat.toFixed(4)),
+      lng: Number(center.lng.toFixed(4)),
+    }),
+    [center.lat, center.lng],
+  );
 
   const { data: nearby } = useQuery({
-    queryKey: ["nearby", center.lat, center.lng],
+    queryKey: ["nearby", liveCenter.lat, liveCenter.lng],
     queryFn: () =>
-      nearbyServices({ lat: center.lat, lng: center.lng, radius_km: 25 }),
+      nearbyServices({ lat: liveCenter.lat, lng: liveCenter.lng, radius_km: 25 }),
+    placeholderData: keepPreviousData,
+    staleTime: 15_000,
   });
   const { liveMechanics } = useDriverNearbyMechanicsWs({
-    center,
+    center: liveCenter,
     radiusKm: 25,
     enabled: Boolean(user?.role === "driver"),
   });

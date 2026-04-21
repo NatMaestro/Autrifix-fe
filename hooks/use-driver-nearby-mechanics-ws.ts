@@ -109,13 +109,12 @@ export function useDriverNearbyMechanicsWs({ center, radiusKm = 25, enabled = tr
     };
 
     ws.onerror = () => {
-      setLiveMechanics(null);
+      // Keep last known live list; HTTP fallback and next reconnect will refresh.
     };
 
     return () => {
       ws.onmessage = null;
       ws.close();
-      setLiveMechanics(null);
     };
   }, [enabled, access, role, center.lat, center.lng, radiusKm]);
 
