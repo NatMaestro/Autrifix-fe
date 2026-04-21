@@ -50,20 +50,20 @@ export default function CompletedPage() {
           <div className="mt-4 space-y-2 text-white/80">
             <p className="flex justify-between">
               <span>Standard roadside assist</span>
-              <span>$85.00</span>
+              <span>GH₵85.00</span>
             </p>
             <p className="flex justify-between">
               <span>On-site tire replacement</span>
-              <span>$120.00</span>
+              <span>GH₵120.00</span>
             </p>
             <p className="flex justify-between">
               <span>Tech service fee</span>
-              <span>$14.50</span>
+              <span>GH₵14.50</span>
             </p>
           </div>
           <div className="mt-4 rounded-2xl bg-[#1d4c42]/85 p-4">
             <p className="text-[11px] uppercase tracking-[0.16em] text-white/50">Total cost paid</p>
-            <p className="font-sora text-6xl font-semibold text-[#91f9be]">$219.50</p>
+            <p className="font-sora text-6xl font-semibold text-[#91f9be]">GH₵219.50</p>
             <p className="text-right text-xs text-white/55">Visa • 4482</p>
           </div>
         </GlassCard>

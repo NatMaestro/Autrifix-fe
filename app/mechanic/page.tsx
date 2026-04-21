@@ -237,21 +237,6 @@ export default function MechanicHomePage() {
     setStatus(next ? "live" : "idle");
   }
 
-  useEffect(() => {
-    if (!online || !coords) return;
-    const savedLat = profile?.base_latitude;
-    const savedLng = profile?.base_longitude;
-    const hasSaved = typeof savedLat === "number" && typeof savedLng === "number";
-    const moved =
-      !hasSaved || Math.abs(savedLat - coords.lat) > 0.0001 || Math.abs(savedLng - coords.lng) > 0.0001;
-    if (!moved) return;
-    patchAvailability.mutate({
-      next: true,
-      lat: coords.lat,
-      lng: coords.lng,
-    });
-  }, [online, coords?.lat, coords?.lng, profile?.base_latitude, profile?.base_longitude]);
-
   return (
     <div className="px-4 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-4">

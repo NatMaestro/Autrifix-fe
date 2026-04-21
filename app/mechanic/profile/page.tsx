@@ -185,6 +185,16 @@ export default function MechanicProfilePage() {
     }
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!profile) return;
+    if (workshopLocationLabel) return;
+    if (typeof profile.base_latitude === "number" && typeof profile.base_longitude === "number") {
+      setWorkshopLocationLabel(
+        `Lat ${profile.base_latitude.toFixed(5)}, Lng ${profile.base_longitude.toFixed(5)}`,
+      );
+    }
+  }, [profile?.base_latitude, profile?.base_longitude, workshopLocationLabel]);
+
   function saveAlertsSettings() {
     if (!user?.id) return;
     try {
@@ -248,7 +258,9 @@ export default function MechanicProfilePage() {
                 window.localStorage.setItem(`mechanic-workshop-label:${user.id}`, label);
                 setWorkshopLocationLabel(label);
               }
-              toast.success("Current location saved.");
+              toast.success(
+                `Current location saved (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}).`,
+              );
               setShowLocationModal(false);
             },
           },
@@ -296,7 +308,7 @@ export default function MechanicProfilePage() {
               window.localStorage.setItem(`mechanic-workshop-label:${user.id}`, label);
               setWorkshopLocationLabel(label);
             }
-            toast.success("Workshop location saved.");
+              toast.success(`Workshop location saved (${lat.toFixed(5)}, ${lng.toFixed(5)}).`);
             setShowLocationModal(false);
           },
         },
@@ -307,6 +319,10 @@ export default function MechanicProfilePage() {
   }
 
   const locationSummary = workshopLocationLabel || null;
+  const locationCoords =
+    typeof profile?.base_latitude === "number" && typeof profile?.base_longitude === "number"
+      ? `${profile.base_latitude.toFixed(5)}, ${profile.base_longitude.toFixed(5)}`
+      : null;
 
   function applySavedCoordsHint() {
     if (!locationSummary) {
@@ -408,6 +424,9 @@ export default function MechanicProfilePage() {
             {locationSummary
               ? `Workshop: ${locationSummary}`
               : "Workshop location not set"}
+          </p>
+          <p className="mt-1 text-[11px] text-white/50">
+            Stored coordinates: {locationCoords ?? "not set"}
           </p>
           <Button
             className="mt-4 w-full"

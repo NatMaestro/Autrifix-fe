@@ -3,8 +3,8 @@
 import { Car } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AutrifixLogo } from "@/components/brand/autrifix-logo";
@@ -47,18 +47,30 @@ const ISSUE_TO_CATEGORY_HINT: Record<string, string[]> = {
 
 export default function DriverHomePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const { geo } = useGeolocation();
   const center =
     geo.status === "ok"
       ? { lat: geo.lat, lng: geo.lng }
       : FALLBACK;
+  const [searchCenter, setSearchCenter] = useState(FALLBACK);
+  const [searchCenterLocked, setSearchCenterLocked] = useState(false);
+
+  useEffect(() => {
+    if (geo.status !== "ok") return;
+    if (!searchCenterLocked) {
+      setSearchCenter({ lat: geo.lat, lng: geo.lng });
+      setSearchCenterLocked(true);
+    }
+  }, [geo.status, geo.status === "ok" ? geo.lat : null, geo.status === "ok" ? geo.lng : null, searchCenterLocked]);
+
   const liveCenter = useMemo(
     () => ({
-      lat: Number(center.lat.toFixed(4)),
-      lng: Number(center.lng.toFixed(4)),
+      lat: Number(searchCenter.lat.toFixed(4)),
+      lng: Number(searchCenter.lng.toFixed(4)),
     }),
-    [center.lat, center.lng],
+    [searchCenter.lat, searchCenter.lng],
   );
 
   const { data: nearby } = useQuery({
@@ -79,10 +91,22 @@ export default function DriverHomePage() {
     for (const m of liveMechanics ?? []) byId.set(m.id, m);
     return Array.from(byId.values()).sort((a, b) => a.distance_km - b.distance_km);
   }, [nearby?.mechanics, liveMechanics]);
-  const nearbyCount = mechanicsForMap.length;
+  const markerReadyMechanics = useMemo(
+    () =>
+      mechanicsForMap.filter(
+        (m) =>
+          Number.isFinite(m.latitude) &&
+          Number.isFinite(m.longitude),
+      ),
+    [mechanicsForMap],
+  );
+  const nearbyCount = markerReadyMechanics.length;
+  const httpCount = nearby?.mechanics?.length ?? 0;
+  const wsCount = liveMechanics?.length ?? 0;
+  const showDiagnostics = searchParams.get("diag") === "1";
   const liveMechanicMarkers = useMemo(() => {
     const buckets = new Map<string, number>();
-    return mechanicsForMap.slice(0, 25).map((m) => {
+    return markerReadyMechanics.slice(0, 25).map((m) => {
       const key = `${m.latitude.toFixed(5)}:${m.longitude.toFixed(5)}`;
       const overlapIndex = buckets.get(key) ?? 0;
       buckets.set(key, overlapIndex + 1);
@@ -112,7 +136,7 @@ export default function DriverHomePage() {
         subtitle: `Mechanic · ${m.rating_avg.toFixed(1)} ★ · ${m.distance_km.toFixed(1)} km away`,
       };
     });
-  }, [mechanicsForMap]);
+  }, [markerReadyMechanics]);
 
   const { data: vehicles } = useQuery({
     queryKey: ["vehicles"],
@@ -204,7 +228,7 @@ export default function DriverHomePage() {
         </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-24 z-[70]">
+      <div className="absolute inset-x-0 bottom-8 z-[70]">
         <LiveRequestPanel
           onRequest={async (issue, tag) => {
             const issueText = `${issue.trim()}${tag ? ` ${tag}` : ""}`.trim();
@@ -258,6 +282,19 @@ export default function DriverHomePage() {
           </span>
         </div>
       </div>
+
+      {showDiagnostics ? (
+        <div className="pointer-events-none absolute bottom-3 left-3 z-[75]">
+          <div className="pointer-events-auto rounded-xl border border-white/15 bg-black/70 px-3 py-2 text-[10px] font-medium tracking-wide text-white/85 backdrop-blur">
+            <p>diag: nearby flow</p>
+            <p className="mt-1 text-white/65">http={httpCount} ws={wsCount} merged={nearbyCount}</p>
+            <p className="text-white/65">
+              center={liveCenter.lat.toFixed(4)}, {liveCenter.lng.toFixed(4)}
+            </p>
+            <p className="text-white/55">append ?diag=1 to enable on any device</p>
+          </div>
+        </div>
+      ) : null}
 
     </div>
   );
