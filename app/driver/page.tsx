@@ -16,6 +16,7 @@ import { vehicleReadiness } from "@/lib/vehicle-profile";
 import { createRequest } from "@/services/jobs";
 import { listVehicles } from "@/services/vehicles";
 import { listServiceCategories, nearbyServices, routeIssue } from "@/services/services";
+import type { NearbyMechanicPreview } from "@/services/services";
 import { useRealtimeStore } from "@/store/realtime-store";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -72,9 +73,13 @@ export default function DriverHomePage() {
     radiusKm: 25,
     enabled: Boolean(user?.role === "driver"),
   });
-  const mechanicsForMap = liveMechanics ?? nearby?.mechanics ?? [];
-  const nearbyCount =
-    liveMechanics !== null ? liveMechanics.length : nearby?.nearby_mechanics_count ?? 0;
+  const mechanicsForMap = useMemo(() => {
+    const byId = new Map<string, NearbyMechanicPreview>();
+    for (const m of nearby?.mechanics ?? []) byId.set(m.id, m);
+    for (const m of liveMechanics ?? []) byId.set(m.id, m);
+    return Array.from(byId.values()).sort((a, b) => a.distance_km - b.distance_km);
+  }, [nearby?.mechanics, liveMechanics]);
+  const nearbyCount = mechanicsForMap.length;
   const liveMechanicMarkers = useMemo(() => {
     const buckets = new Map<string, number>();
     return mechanicsForMap.slice(0, 25).map((m) => {
