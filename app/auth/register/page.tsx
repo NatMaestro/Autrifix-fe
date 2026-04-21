@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import type { AuthUser, UserRole } from "@/store/auth-store";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setSession = useAuthStore((s) => s.setSession);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
@@ -24,6 +25,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [role, setRole] = useState<"driver" | "mechanic">("driver");
+  useEffect(() => {
+    const preset = searchParams.get("role");
+    if (preset === "mechanic" || preset === "driver") {
+      setRole(preset);
+    }
+  }, [searchParams]);
+
   const [loading, setLoading] = useState(false);
 
   const mapRole = (r: string): UserRole => {
@@ -54,15 +62,22 @@ export default function RegisterPage() {
       }
       setLoading(true);
       try {
-        const { access, refresh } = await googleSignIn(credential);
+        const { access, refresh } = await googleSignIn(credential, role);
         await finishWithTokens(access, refresh);
-      } catch {
-        toast.error("Google sign-up failed. Check server configuration and try again.");
+      } catch (error) {
+        const message =
+          typeof error === "object" &&
+          error &&
+          "response" in error &&
+          typeof (error as { response?: { data?: { detail?: string } } }).response?.data?.detail === "string"
+            ? (error as { response?: { data?: { detail?: string } } }).response!.data!.detail!
+            : "Google sign-up failed. Check server configuration and try again.";
+        toast.error(message);
       } finally {
         setLoading(false);
       }
     },
-    [finishWithTokens],
+    [finishWithTokens, role],
   );
 
   useEffect(() => {

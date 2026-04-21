@@ -36,8 +36,11 @@ export async function registerWithPassword(body: {
   return data;
 }
 
-export async function googleSignIn(idToken: string) {
-  const { data } = await api.post<AuthTokens>("/auth/google/", { id_token: idToken });
+export async function googleSignIn(idToken: string, role?: "driver" | "mechanic") {
+  const { data } = await api.post<AuthTokens>("/auth/google/", {
+    id_token: idToken,
+    ...(role ? { role } : {}),
+  });
   return data;
 }
 

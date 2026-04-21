@@ -172,8 +172,8 @@ export default function MechanicHomePage() {
     setIncoming(Boolean(visibleIncomingRequest));
   }, [online, visibleIncomingRequest]);
 
-  function toggle() {
-    const next = !online;
+  function setAvailability(next: boolean) {
+    if (next === online) return;
     setOnline(next);
     if (next) {
       setOnlineSinceMs(Date.now());
@@ -198,16 +198,32 @@ export default function MechanicHomePage() {
           : undefined,
       },
       {
-      onError: () => {
-        toast.error("Could not update availability.");
-        setOnline(!next);
+        onError: () => {
+          toast.error("Could not update availability.");
+          setOnline(!next);
+        },
+        onSuccess: () => {
+          toast.success(next ? "You are now online." : "You are now offline.");
+        },
       },
-      onSuccess: () => {
-        toast.success(next ? "You are now online." : "You are now offline.");
-      },
-    });
+    );
     setStatus(next ? "live" : "idle");
   }
+
+  useEffect(() => {
+    if (!online || !coords) return;
+    const savedLat = profile?.base_latitude;
+    const savedLng = profile?.base_longitude;
+    const hasSaved = typeof savedLat === "number" && typeof savedLng === "number";
+    const moved =
+      !hasSaved || Math.abs(savedLat - coords.lat) > 0.0001 || Math.abs(savedLng - coords.lng) > 0.0001;
+    if (!moved) return;
+    patchAvailability.mutate({
+      next: true,
+      lat: coords.lat,
+      lng: coords.lng,
+    });
+  }, [online, coords?.lat, coords?.lng, profile?.base_latitude, profile?.base_longitude]);
 
   return (
     <div className="px-4 pt-6">
@@ -222,7 +238,7 @@ export default function MechanicHomePage() {
         <div className="rounded-2xl border border-white/10 bg-[#212c3d] p-2">
           <button
             type="button"
-            onClick={toggle}
+            onClick={() => setAvailability(true)}
             className={`rounded-xl px-6 py-2 text-sm font-semibold ${
               online ? "bg-[#7ef8b1] text-[#153227]" : "text-white/55"
             }`}
@@ -231,7 +247,7 @@ export default function MechanicHomePage() {
           </button>
           <button
             type="button"
-            onClick={toggle}
+            onClick={() => setAvailability(false)}
             className={`rounded-xl px-6 py-2 text-sm font-semibold ${
               !online ? "bg-[#7ef8b1] text-[#153227]" : "text-white/55"
             }`}
