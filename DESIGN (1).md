@@ -74,7 +74,7 @@ In this design system, depth is not a shadow; it is a light-source.
 ### Do:
 - **Do** use intentional asymmetry. Align titles to the far left and secondary actions to the far right with significant white space between them.
 - **Do** use "Breathing Room." If you think a component has enough padding, add 8px more.
-- **Do** use the `tertiary` (Amber) color sparingly—only for high-priority alerts like "Mechanic Arriving" or "Safety Warning."
+- **Do** use the `tertiary` (Amber) color sparingly—only for high-priority alerts like "Provider Arriving" or "Safety Warning."
 
 ### Don’t:
 - **Don’t** use pure white (#FFFFFF) for body text. Use `on_surface_variant` to reduce eye strain in dark mode.
