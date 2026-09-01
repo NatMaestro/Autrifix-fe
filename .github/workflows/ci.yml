@@ -6,9 +6,9 @@ on:
   pull_request:
     branches: [main, master, develop]
 
-defaults:
-  run:
-    working-directory: autrifix-web
+# No `working-directory`: this repository's root *is* the web app. The two projects sit in
+# sibling directories locally but are separate repositories on GitHub — Autrifix-fe here,
+# Autrifix-be for the backend — so `autrifix-web` is not a path that exists in this checkout.
 
 jobs:
   check:
@@ -22,11 +22,10 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: autrifix-web/package-lock.json
 
       # `ci` rather than `install`: it installs exactly the lockfile. The truncated-package
-      # incident that broke ESLint for months came from a partial install, and `ci` starts
-      # from a clean node_modules every time.
+      # incident that broke ESLint came from a partial install, and `ci` starts from a clean
+      # node_modules every time.
       - run: npm ci
 
       - name: Typecheck
@@ -42,11 +41,15 @@ jobs:
         run: npm run build
 
   api-contract:
-    # The generated client is only trustworthy if it matches the backend it was generated
-    # from. This regenerates from the current backend and fails if the committed types have
-    # drifted — the exact failure mode ADR-003 exists to prevent, which previously went
-    # unnoticed until six endpoints were 404ing in production code.
-    name: generated types match the backend
+    # ADR-003 turns backend drift into a compile error, but only while the generated types
+    # actually match `openapi/schema.yml`. A stale `api-types.ts` typechecks perfectly and
+    # lies exactly as the hand-written types did, so this regenerates and diffs.
+    #
+    # **What this cannot check:** whether `schema.yml` itself is current with the live
+    # backend. That lives in a separate repository, so verifying it from here would need
+    # cross-repo credentials. Keeping the schema fresh is `npm run api:gen` against a local
+    # backend — see docs/API-INTEGRATION.md.
+    name: generated types match the committed schema
     runs-on: ubuntu-latest
 
     steps:
@@ -56,36 +59,19 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: autrifix-web/package-lock.json
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install backend
-        working-directory: autrifix-be
-        run: pip install -r requirements.txt
-
-      - name: Export schema
-        working-directory: autrifix-be
-        env:
-          DJANGO_SETTINGS_MODULE: autrifix.settings.test
-          SECRET_KEY: ci-only-not-a-real-secret-value-for-schema-export
-        run: python manage.py spectacular --fail-on-warn --file ../autrifix-web/openapi/schema.yml
 
       - run: npm ci
 
-      - name: Regenerate types
+      - name: Regenerate types from the committed schema
         run: npm run api:types
 
-      - name: Fail if committed types are stale
+      - name: Fail if the committed types are stale
         run: |
           # --intent-to-add so an *untracked* generated file counts as drift too. Without
-          # it `git diff` silently ignores untracked paths and the check passes vacuously
-          # if the generated files were never committed.
+          # it `git diff` silently ignores untracked paths and the check passes vacuously.
           git add --intent-to-add openapi/schema.yml lib/api-types.ts
           if ! git diff --exit-code -- openapi/schema.yml lib/api-types.ts; then
-            echo "::error::The committed API types do not match the backend schema."
-            echo "Run 'npm run api:gen' and commit the result."
+            echo "::error::lib/api-types.ts does not match openapi/schema.yml."
+            echo "Run 'npm run api:types' and commit the result."
             exit 1
           fi

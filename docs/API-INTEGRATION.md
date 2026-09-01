@@ -79,13 +79,23 @@ generation is that the schema can be trusted.
 `.github/workflows/ci.yml` runs two jobs:
 
 1. **check** — typecheck, lint, test, build.
-2. **api-contract** — exports the schema from the backend, regenerates the types, and fails
-   if the committed ones differ.
+2. **api-contract** — regenerates `lib/api-types.ts` from the committed `openapi/schema.yml`
+   and fails if they differ.
 
-The second job is the one that matters for this document. ADR-003 turns backend drift into a
-compile error, but only if the types are regenerated; a stale `api-types.ts` typechecks
-perfectly and lies exactly as the hand-written types did. CI regenerating them is what makes
-the discipline hold without anyone remembering to.
+The second job matters for this document. ADR-003 turns backend drift into a compile error,
+but only while the types match the schema; a stale `api-types.ts` typechecks perfectly and
+lies exactly as the hand-written types did.
 
-The check uses `git add --intent-to-add` first, so an untracked generated file counts as
-drift too — otherwise `git diff` ignores untracked paths and the check passes vacuously.
+It uses `git add --intent-to-add` first, so an untracked generated file counts as drift too —
+otherwise `git diff` ignores untracked paths and the check passes vacuously.
+
+### What CI cannot check
+
+**Whether `openapi/schema.yml` is current with the live backend.** The backend is a separate
+GitHub repository (`Autrifix-be`), so verifying that from here would need cross-repo
+credentials. CI catches *types-vs-schema* drift; only running `npm run api:gen` against a
+backend catches *schema-vs-backend* drift.
+
+In practice that means: **run `npm run api:gen` after any backend contract change and commit
+the result.** If it is forgotten, the failure is silent in exactly the way this whole
+arrangement exists to prevent — which is worth knowing rather than assuming CI has it covered.
