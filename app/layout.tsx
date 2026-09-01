@@ -19,7 +19,7 @@ const sora = Sora({
 
 const defaultTitle = "AutriFix — Roadside, reimagined";
 const defaultDescription =
-  "Real-time roadside assistance. Drivers meet mechanics on a live map — request help, get matched, chat on the job, and close out when you are moving again.";
+  "Real-time roadside assistance. Customers meet providers on a live map — request help, get matched, chat on the job, and close out when you are moving again.";
 
 export const metadata: Metadata = {
   metadataBase: getMetadataBase(),

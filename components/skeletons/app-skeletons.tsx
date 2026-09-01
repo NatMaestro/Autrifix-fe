@@ -43,7 +43,7 @@ export function CardListSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-export function DriverPageSkeleton() {
+export function CustomerPageSkeleton() {
   return (
     <div className="px-4 pb-28 pt-6">
       <PageHeaderSkeleton />
@@ -65,7 +65,7 @@ export function DriverPageSkeleton() {
   );
 }
 
-export function MechanicPageSkeleton() {
+export function ProviderPageSkeleton() {
   return (
     <div className="px-4 pt-6">
       <PageHeaderSkeleton />

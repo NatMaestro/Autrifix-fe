@@ -59,7 +59,7 @@ export default async function OpenGraphImage() {
           </div>
         </div>
         <span style={{ fontSize: 22, color: "rgba(255,255,255,0.45)" }}>
-          Drivers · Mechanics · Real-time jobs
+          Customers · Providers · Real-time jobs
         </span>
       </div>
     ),

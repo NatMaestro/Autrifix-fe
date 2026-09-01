@@ -1,26 +1,27 @@
 import { api } from "@/lib/api";
+import { unwrapList, type Paginated, type Vehicle } from "@/lib/api-schema";
 
-import type { VehicleDto } from "@/lib/vehicle-profile";
+export type { Vehicle };
 
-type VehicleListResponse = VehicleDto[] | { results?: VehicleDto[] | null };
-
+/**
+ * Vehicles live under `/customers/` — the owner is a customer, not a "driver". The old
+ * `/drivers/vehicles/` paths 404 (backend ADR-020).
+ */
 export async function listVehicles() {
-  const { data } = await api.get<VehicleListResponse>("/drivers/vehicles/");
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.results)) return data.results;
-  return [];
+  const { data } = await api.get<Paginated<Vehicle> | Vehicle[]>("/customers/vehicles/");
+  return unwrapList(data);
 }
 
-export async function createVehicle(body: Partial<VehicleDto> & Pick<VehicleDto, "make" | "model">) {
-  const { data } = await api.post<VehicleDto>("/drivers/vehicles/", body);
+export async function createVehicle(body: Partial<Vehicle> & Pick<Vehicle, "make" | "model">) {
+  const { data } = await api.post<Vehicle>("/customers/vehicles/", body);
   return data;
 }
 
-export async function updateVehicle(id: string, body: Partial<VehicleDto>) {
-  const { data } = await api.patch<VehicleDto>(`/drivers/vehicles/${id}/`, body);
+export async function updateVehicle(id: string, body: Partial<Vehicle>) {
+  const { data } = await api.patch<Vehicle>(`/customers/vehicles/${id}/`, body);
   return data;
 }
 
 export async function deleteVehicle(id: string) {
-  await api.delete(`/drivers/vehicles/${id}/`);
+  await api.delete(`/customers/vehicles/${id}/`);
 }

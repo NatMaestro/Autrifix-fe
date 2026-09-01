@@ -7,8 +7,7 @@ import { CarFront, Wrench } from "lucide-react";
 
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { fetchMe, patchDriverProfile, patchMechanicProfile, patchMe } from "@/services/me";
+import { fetchMe, patchCustomerProfile, patchProviderProfile, patchMe } from "@/services/me";
 import { useAuthStore } from "@/store/auth-store";
 import { AuthCardSkeleton } from "@/components/skeletons/app-skeletons";
 
@@ -18,9 +17,9 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState(
     [user?.first_name, user?.last_name].filter(Boolean).join(" "),
   );
-  const [role, setRole] = useState<"driver" | "mechanic">(
-    user?.role === "mechanic" ? "mechanic" : "driver",
-  );
+  // Derived, not state: role is fixed at signup and read-only afterwards (ADR-013).
+  // It is read here only to route the user to the right side of the app.
+  const role = user?.role === "provider" ? "provider" : "customer";
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -61,27 +60,30 @@ export default function ProfilePage() {
           });
         }
         toast.success("Profile saved (demo mode).");
-        router.replace(role === "mechanic" ? "/mechanic" : "/driver");
+        router.replace(role === "provider" ? "/provider" : "/customer");
         return;
       }
 
+      // `role` is deliberately not sent: the backend makes it read-only after signup
+      // (ADR-013), so it was being silently dropped — the picker below appeared to work
+      // and never did. Recorded as CONFLICT-W001-A in docs/DECISIONS.md; the picker's
+      // fate is a product decision, not one to make here.
       const me = await patchMe({
         first_name: firstName,
         last_name: lastName,
-        role,
       });
       patchUser(me);
       const display = `${firstName} ${lastName}`.trim();
-      if (role === "driver") {
-        await patchDriverProfile({ display_name: display });
+      if (role === "customer") {
+        await patchCustomerProfile({ display_name: display });
       } else {
-        await patchMechanicProfile({ business_name: display });
+        await patchProviderProfile({ business_name: display });
       }
       const fresh = await fetchMe();
       const { access: a, refresh: r } = useAuthStore.getState();
       if (a && r) setSession(a, r, fresh);
       toast.success("Profile saved.");
-      router.replace(role === "mechanic" ? "/mechanic" : "/driver");
+      router.replace(role === "provider" ? "/provider" : "/customer");
     } catch {
       toast.error("Could not save profile. Try again.");
     } finally {
@@ -115,44 +117,26 @@ export default function ProfilePage() {
             placeholder="Enter your full name"
           />
         </div>
+        {/* Shown, not chosen. The picker that used to live here was silently ignored by
+            the backend; the choice now happens before the account exists. */}
         <div>
           <label className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate-500 dark:text-white/45">
-            Select role
+            Account type
           </label>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {([
-              {
-                roleId: "driver",
-                title: "Driver",
-                desc: "I need roadside assistance, vehicle tracking, and service scheduling.",
-                Icon: CarFront,
-              },
-              {
-                roleId: "mechanic",
-                title: "Mechanic",
-                desc: "I want to provide repair services, manage jobs, and earn through the platform.",
-                Icon: Wrench,
-              },
-            ] as const).map(({ roleId, title, desc, Icon }) => (
-              <button
-                key={roleId}
-                type="button"
-                onClick={() => setRole(roleId)}
-                disabled={loading}
-                className={cn(
-                  "rounded-3xl border px-4 py-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70",
-                  role === roleId
-                    ? "border-[#00E676]/75 bg-emerald-50 text-slate-900 shadow-[0_0_0_1px_rgba(0,230,118,0.35)] dark:bg-[#243044] dark:text-white"
-                    : "border-slate-300/70 bg-white/60 text-slate-700 hover:border-slate-400/80 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:border-white/20",
-                )}
-              >
-                <div className="mb-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-[#0f1727]">
-                  <Icon className="h-5 w-5 text-[#00E676]" />
-                </div>
-                <p className="font-sora text-2xl font-semibold">{title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-white/65">{desc}</p>
-              </button>
-            ))}
+          <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-300/70 bg-white/60 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+            {role === "provider" ? (
+              <Wrench className="h-5 w-5 text-[#00E676]" />
+            ) : (
+              <CarFront className="h-5 w-5 text-[#00E676]" />
+            )}
+            <div>
+              <p className="font-medium text-slate-900 dark:text-white">
+                {role === "provider" ? "Provider" : "Customer"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-white/45">
+                Chosen at signup and cannot be changed here.
+              </p>
+            </div>
           </div>
         </div>
         <Button type="submit" className="w-full" size="lg" disabled={loading}>

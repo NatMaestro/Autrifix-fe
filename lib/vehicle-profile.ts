@@ -18,8 +18,8 @@ export type VehicleDto = {
   is_primary?: boolean;
 };
 
-/** localStorage key: primary vehicle snapshot for mechanic UI demo until job APIs carry vehicle context */
-export const DRIVER_VEHICLE_PACK_STORAGE_KEY = "autrifix-vehicle-pack";
+/** localStorage key: primary vehicle snapshot for provider UI demo until job APIs carry vehicle context */
+export const CUSTOMER_VEHICLE_PACK_STORAGE_KEY = "autrifix-vehicle-pack";
 
 export type VehiclePackSnapshot = {
   updatedAt: string;

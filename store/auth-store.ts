@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type UserRole = "driver" | "mechanic" | "admin";
+// Sourced from the generated OpenAPI schema rather than restated here — this literal
+// union is exactly what drifted: it still read "driver" | "mechanic" long after the
+// backend had moved to customer/provider, and `tsc` had no way to notice.
+export type { UserRole } from "@/lib/api-schema";
+import type { UserRole } from "@/lib/api-schema";
 
 export type AuthUser = {
   id: string;

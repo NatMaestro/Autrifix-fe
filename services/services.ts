@@ -1,10 +1,8 @@
 import { api } from "@/lib/api";
 
-export type ServiceCategory = {
-  id: string;
-  name?: string;
-  slug?: string;
-};
+import type { ServiceCategoryMini } from "@/lib/api-schema";
+
+export type ServiceCategory = ServiceCategoryMini;
 
 export type IssueRouteResponse = {
   category_id: string | null;
@@ -14,7 +12,7 @@ export type IssueRouteResponse = {
   reason: string;
 };
 
-export type NearbyMechanicPreview = {
+export type NearbyProviderPreview = {
   id: string;
   business_name: string;
   latitude: number;
@@ -26,9 +24,11 @@ export type NearbyMechanicPreview = {
 
 export type NearbyServicesResponse = {
   categories: ServiceCategory[];
-  nearby_mechanics_count: number;
+  nearby_providers_count: number;
   radius_km: number;
-  mechanics: NearbyMechanicPreview[];
+  providers: NearbyProviderPreview[];
+  /** The backend caps results at 50. When true, there are more than are shown. */
+  truncated: boolean;
 };
 
 export async function nearbyServices(params: {
@@ -39,9 +39,11 @@ export async function nearbyServices(params: {
   const { data } = await api.get<Partial<NearbyServicesResponse>>("/services/nearby/", { params });
   return {
     categories: Array.isArray(data?.categories) ? data.categories : [],
-    nearby_mechanics_count: Number(data?.nearby_mechanics_count ?? 0),
+    nearby_providers_count: Number(data?.nearby_providers_count ?? 0),
+    // Was discarded, so a capped result set looked like the complete picture.
+    truncated: Boolean(data?.truncated),
     radius_km: Number(data?.radius_km ?? params.radius_km ?? 25),
-    mechanics: Array.isArray(data?.mechanics) ? data.mechanics : [],
+    providers: Array.isArray(data?.providers) ? data.providers : [],
   } satisfies NearbyServicesResponse;
 }
 
@@ -50,6 +52,12 @@ export async function listServiceCategories() {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
   return [];
+}
+
+/** Look up a routed category so the client can honour flags like `requires_destination`. */
+export async function findCategory(categoryId: string) {
+  const categories = await listServiceCategories();
+  return categories.find((c) => c.id === categoryId) ?? null;
 }
 
 export async function routeIssue(issueText: string) {

@@ -24,7 +24,7 @@ export default function DemoMapPage() {
           center={ACCRA}
           zoom={12}
           markers={[
-            { id: "1", lat: 5.61, lng: -0.19, label: "Mechanic" },
+            { id: "1", lat: 5.61, lng: -0.19, label: "Provider" },
             { id: "2", lat: 5.595, lng: -0.175, label: "Tow" },
           ]}
         />
