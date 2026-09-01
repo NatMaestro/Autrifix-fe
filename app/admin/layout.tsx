@@ -11,7 +11,6 @@ import {
   UsersRound,
   Wrench,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
+      {/* The prototype banner is gone: these pages now read and write the real admin API
+          (SPEC-012 REQ-4). What remains unbuilt is scoped operator roles — `admin` is
+          all-or-nothing — and editing accounts, which is still Django admin's job. */}
       <aside className="hidden border-r border-slate-300/70 bg-white/85 p-6 lg:flex lg:flex-col dark:border-white/10 dark:bg-[#111b2b]/95">
         <p className="font-sora text-3xl font-semibold text-slate-900 dark:text-white">AutriFix Admin</p>
         <div className="mt-6 rounded-2xl border border-slate-300/70 bg-white/90 p-4 dark:border-white/10 dark:bg-[#1b273a]/90">

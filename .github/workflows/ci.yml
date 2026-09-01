@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+defaults:
+  run:
+    working-directory: autrifix-web
+
+jobs:
+  check:
+    name: typecheck, lint, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: autrifix-web/package-lock.json
+
+      # `ci` rather than `install`: it installs exactly the lockfile. The truncated-package
+      # incident that broke ESLint for months came from a partial install, and `ci` starts
+      # from a clean node_modules every time.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  api-contract:
+    # The generated client is only trustworthy if it matches the backend it was generated
+    # from. This regenerates from the current backend and fails if the committed types have
+    # drifted — the exact failure mode ADR-003 exists to prevent, which previously went
+    # unnoticed until six endpoints were 404ing in production code.
+    name: generated types match the backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: autrifix-web/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend
+        working-directory: autrifix-be
+        run: pip install -r requirements.txt
+
+      - name: Export schema
+        working-directory: autrifix-be
+        env:
+          DJANGO_SETTINGS_MODULE: autrifix.settings.test
+          SECRET_KEY: ci-only-not-a-real-secret-value-for-schema-export
+        run: python manage.py spectacular --fail-on-warn --file ../autrifix-web/openapi/schema.yml
+
+      - run: npm ci
+
+      - name: Regenerate types
+        run: npm run api:types
+
+      - name: Fail if committed types are stale
+        run: |
+          # --intent-to-add so an *untracked* generated file counts as drift too. Without
+          # it `git diff` silently ignores untracked paths and the check passes vacuously
+          # if the generated files were never committed.
+          git add --intent-to-add openapi/schema.yml lib/api-types.ts
+          if ! git diff --exit-code -- openapi/schema.yml lib/api-types.ts; then
+            echo "::error::The committed API types do not match the backend schema."
+            echo "Run 'npm run api:gen' and commit the result."
+            exit 1
+          fi

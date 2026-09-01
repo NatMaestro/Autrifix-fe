@@ -33,6 +33,8 @@ type Props = {
   showUser?: boolean;
   routePath?: { lat: number; lng: number }[];
   useAutoRoute?: boolean;
+  /** When provided, clicking the map reports the coordinate — used to pick a tow destination. */
+  onPick?: (point: { lat: number; lng: number }) => void;
   children?: React.ReactNode;
 };
 
@@ -49,6 +51,7 @@ export function AutriMap(props: Props) {
         showUser={props.showUser}
         routePath={props.routePath}
         useAutoRoute={props.useAutoRoute}
+        onPick={props.onPick}
         theme={isDark ? "dark" : "light"}
       />
       {props.children}

@@ -1,0 +1,4668 @@
+openapi: 3.0.3
+info:
+  title: AutriFix API
+  version: 1.0.0
+  description: 'Roadside assistance marketplace: customers, providers, real-time jobs.
+    MVP auth: `POST /api/v1/auth/register/` with **email** + **phone** + **password**;
+    `POST /api/v1/auth/login/` with **identifier** (email or E.164 phone) + **password**;
+    `POST /api/v1/auth/google/` with Google **id_token**. Legacy SMS OTP endpoints
+    remain for future use.'
+paths:
+  /api/v1/admin/jobs/:
+    get:
+      operationId: admin_jobs_list
+      description: Every job, newest first — the operational view for answering "what
+        happened here?".
+      summary: Job history
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - administration
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminJobList'
+          description: ''
+  /api/v1/admin/stats/:
+    get:
+      operationId: admin_stats_retrieve
+      summary: Operational counts
+      tags:
+      - administration
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStatsResponse'
+          description: ''
+  /api/v1/admin/users/:
+    get:
+      operationId: admin_users_list
+      summary: Search users
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: q
+        schema:
+          type: string
+        description: Match name, email, or phone.
+      - in: query
+        name: role
+        schema:
+          type: string
+        description: Filter by role.
+      tags:
+      - administration
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminUserList'
+          description: ''
+  /api/v1/admin/verifications/:
+    get:
+      operationId: admin_verifications_list
+      description: |-
+        Submissions awaiting a decision, oldest first.
+
+        Oldest first because this is a queue someone works through, and newest-first quietly
+        starves the people who have waited longest — which is the complaint verification delays
+        generate (SPEC-013 OQ-013-D).
+      summary: Verification review queue
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by submission status. Defaults to `pending`.
+      tags:
+      - administration
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminVerificationList'
+          description: ''
+  /api/v1/admin/verifications/{id}/review/:
+    post:
+      operationId: admin_verifications_review_create
+      summary: Approve or decline a verification submission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - administration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminVerificationReviewRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminVerificationReviewRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminVerificationReviewRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminVerification'
+          description: ''
+  /api/v1/ai/diagnostics/:
+    post:
+      operationId: ai_diagnostics_create
+      description: |-
+        POST body: { "symptoms": "...", "vehicle": { "make": "...", "model": "..." } }
+        Returns heuristic diagnostics (replace with LLM + RAG in production).
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsResponse'
+          description: ''
+  /api/v1/ai/matching/preview/:
+    post:
+      operationId: ai_matching_preview_create
+      description: |-
+        Rank providers for a service request.
+
+        Scoped to the request's own customer (or staff). It previously accepted any
+        ``service_request_id`` from any authenticated user and returned nearby providers for
+        it (``specs/006-matching-discovery.md`` SECGAP-006-3).
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchingPreviewRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MatchingPreviewRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MatchingPreviewRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchingPreviewResponse'
+          description: ''
+  /api/v1/ai/route-issue/:
+    post:
+      operationId: ai_route_issue_create
+      description: Hybrid issue routing (rules + incremental ML).
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueRouteRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/IssueRouteRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/IssueRouteRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueRouteResponse'
+          description: ''
+  /api/v1/auth/google/:
+    post:
+      operationId: auth_google_create
+      description: Verify a Google **id_token** (GIS credential) and return JWT **access**
+        / **refresh**.
+      summary: Sign in with Google
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleAuthTokens'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Authenticate with **identifier** (email or E.164 phone) and **password**.
+        You may send **email** or **phone** instead of **identifier** if exactly one
+        is non-empty. Returns JWT **access** and **refresh**.
+      summary: Login (password)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginIdentifierRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginIdentifierRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginIdentifierRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentifierTokenObtainPair'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: 'Blacklist the **refresh** token. Send `{"refresh": "..."}` in
+        the body.'
+      summary: Logout
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenBlacklistRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/refresh-token/:
+    post:
+      operationId: auth_refresh_token_create
+      description: 'Body: `{"refresh": "<refresh token>"}` — returns new **access**
+        (and optionally rotated **refresh**).'
+      summary: Refresh token
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: Create an account with **email**, **phone**, and **password**.
+        Both email and phone are required; you can sign in later with either plus
+        password. Returns profile fields and JWT tokens.
+      summary: Register (password)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterEmailPhoneRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterEmailPhoneRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterEmailPhoneRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/v1/auth/send-otp/:
+    post:
+      operationId: auth_send_otp_create
+      description: Sends a 6-digit code via SMS (console/log in dev). Rate-limited;
+        code expires in 5 minutes.
+      summary: Send OTP (SMS)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPSentResponse'
+          description: ''
+  /api/v1/auth/verify-otp/:
+    post:
+      operationId: auth_verify_otp_create
+      description: Verify the SMS code. **Creates** a user on first success (passwordless)
+        or logs in an existing user. Optional **role** (`customer` | `provider`) applies
+        only when the account is created.
+      summary: Verify OTP
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPVerifyTokens'
+          description: ''
+  /api/v1/chat/:
+    get:
+      operationId: chat_list
+      description: Chat rooms for jobs where the user is the customer or the assigned
+        provider.
+      summary: List my chat rooms
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedChatRoomListList'
+          description: ''
+  /api/v1/chat/jobs/{job_id}/:
+    get:
+      operationId: chat_jobs_retrieve
+      description: Read a conversation. Restricted to the job's two participants.
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - chat
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatRoom'
+          description: ''
+  /api/v1/chat/jobs/{job_id}/messages/:
+    post:
+      operationId: chat_jobs_messages_create
+      description: Post a message. Restricted to the job's two participants.
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+          description: ''
+  /api/v1/customers/profile/:
+    get:
+      operationId: customers_profile_retrieve
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+          description: ''
+    put:
+      operationId: customers_profile_update
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerProfileRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+          description: ''
+    patch:
+      operationId: customers_profile_partial_update
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerProfileRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+          description: ''
+  /api/v1/customers/vehicles/:
+    get:
+      operationId: customers_vehicles_list
+      description: Vehicles are always scoped to the calling customer's own garage.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVehicleList'
+          description: ''
+    post:
+      operationId: customers_vehicles_create
+      description: Vehicles are always scoped to the calling customer's own garage.
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+          description: ''
+  /api/v1/customers/vehicles/{id}/:
+    get:
+      operationId: customers_vehicles_retrieve
+      description: Vehicles are always scoped to the calling customer's own garage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+          description: ''
+    put:
+      operationId: customers_vehicles_update
+      description: Vehicles are always scoped to the calling customer's own garage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VehicleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+          description: ''
+    patch:
+      operationId: customers_vehicles_partial_update
+      description: Vehicles are always scoped to the calling customer's own garage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVehicleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVehicleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVehicleRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vehicle'
+          description: ''
+    delete:
+      operationId: customers_vehicles_destroy
+      description: Vehicles are always scoped to the calling customer's own garage.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+  /api/v1/jobs/:
+    get:
+      operationId: jobs_list
+      description: Jobs where the current user is the customer (via request) or assigned
+        provider.
+      summary: List my jobs
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobList'
+          description: ''
+  /api/v1/jobs/{id}/:
+    get:
+      operationId: jobs_retrieve
+      description: |-
+        Read a job, or request a state transition by sending a new ``status``.
+
+        Transitions are validated against the table in ``apps.jobs.services``; an illegal
+        move returns ``409``.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+          description: ''
+    put:
+      operationId: jobs_update
+      description: |-
+        Read a job, or request a state transition by sending a new ``status``.
+
+        Transitions are validated against the table in ``apps.jobs.services``; an illegal
+        move returns ``409``.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JobRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+          description: ''
+    patch:
+      operationId: jobs_partial_update
+      description: |-
+        Read a job, or request a state transition by sending a new ``status``.
+
+        Transitions are validated against the table in ``apps.jobs.services``; an illegal
+        move returns ``409``.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedJobRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+          description: ''
+  /api/v1/jobs/{job_id}/quotes/:
+    get:
+      operationId: jobs_quotes_list
+      description: |-
+        Both parties read the price thread; only the assigned provider adds to it.
+
+        Quoting is optional — a tow price is computable from distance up front, and a trivial
+        repair may not be worth the round trip. Where it earns its keep is a repair whose cost
+        is unknowable until someone looks (SPEC-015 REQ-5).
+      summary: List or submit price quotes for a job
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQuoteList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQuoteList'
+          description: ''
+    post:
+      operationId: jobs_quotes_create
+      description: |-
+        Both parties read the price thread; only the assigned provider adds to it.
+
+        Quoting is optional — a tow price is computable from distance up front, and a trivial
+        repair may not be worth the round trip. Where it earns its keep is a repair whose cost
+        is unknowable until someone looks (SPEC-015 REQ-5).
+      summary: List or submit price quotes for a job
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQuoteList'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+          description: ''
+  /api/v1/jobs/{job_id}/quotes/{quote_id}/respond/:
+    post:
+      operationId: jobs_quotes_respond_create
+      description: Customer-only. Declining is not a cancellation — it invites a revised
+        quote.
+      summary: Accept or decline a price quote
+      parameters:
+      - in: path
+        name: job_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: quote_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRespondRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuoteRespondRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuoteRespondRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+          description: ''
+  /api/v1/jobs/categories/:
+    get:
+      operationId: jobs_categories_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedServiceCategoryMiniList'
+          description: ''
+  /api/v1/jobs/requests/:
+    get:
+      operationId: jobs_requests_list
+      description: Resolves the caller's customer profile once and shares it with
+        the serializer.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedServiceRequestList'
+          description: ''
+    post:
+      operationId: jobs_requests_create
+      description: Resolves the caller's customer profile once and shares it with
+        the serializer.
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+  /api/v1/jobs/requests/{id}/:
+    get:
+      operationId: jobs_requests_retrieve
+      description: Resolves the caller's customer profile once and shares it with
+        the serializer.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+    put:
+      operationId: jobs_requests_update
+      description: Resolves the caller's customer profile once and shares it with
+        the serializer.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+    patch:
+      operationId: jobs_requests_partial_update
+      description: Resolves the caller's customer profile once and shares it with
+        the serializer.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - jobs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedServiceRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedServiceRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedServiceRequestRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+  /api/v1/jobs/requests/{id}/cancel/:
+    post:
+      operationId: jobs_requests_cancel_create
+      description: Customer-initiated cancellation. Also cancels any live job on the
+        request.
+      summary: Cancel my service request
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - requests
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/jobs/requests/{request_id}/accept/:
+    post:
+      operationId: jobs_requests_accept_create
+      description: Claim an open request. Returns ``409`` if another provider won
+        the race.
+      parameters:
+      - in: path
+        name: request_id
+        schema:
+          type: string
+          format: uuid
+        description: Open service request id
+        required: true
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/jobs/requests/nearby/:
+    get:
+      operationId: jobs_requests_nearby_list
+      description: |-
+        Open requests near a provider, nearest first.
+
+        Restricted to requests touched within :data:`OPEN_REQUEST_FEED_WINDOW`, capped at
+        :data:`DISCOVERY_RESULT_LIMIT`.
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+  /api/v1/me/:
+    get:
+      operationId: me_retrieve
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: me_update
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: me_partial_update
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/me/verify-phone/:
+    post:
+      operationId: me_verify_phone_create
+      description: Confirm the code sent by `POST /auth/send-otp/` for this account's
+        phone number. Registration collects a phone but does not verify it.
+      summary: Verify my phone number
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPhoneRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyPhoneRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyPhoneRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyPhoneResponse'
+          description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: notifications_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Return only notifications that have not been marked read.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/notifications/{id}/read/:
+    post:
+      operationId: notifications_read_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationMarkReadResponse'
+          description: ''
+  /api/v1/notifications/unread-count/:
+    get:
+      operationId: notifications_unread_count_retrieve
+      description: Badge count, so clients do not have to page the whole list.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationUnreadCountResponse'
+          description: ''
+  /api/v1/providers/agencies/:
+    post:
+      operationId: providers_agencies_create
+      description: |-
+        The creator becomes the agency's first active owner.
+
+        A provider holds at most one live membership, so creating while already in an agency is
+        a `409` rather than a silent second membership.
+      summary: Create an agency
+      tags:
+      - agencies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgencyCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgencyCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgencyCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+          description: ''
+  /api/v1/providers/agencies/{id}/:
+    get:
+      operationId: providers_agencies_retrieve
+      description: |-
+        Visible only to its own members; `404` otherwise, so ids stay unconfirmable.
+
+        `verification_level` is absent from the writable fields on purpose — an agency that
+        could set its own level would lift every member's effective level with it.
+      summary: Read or edit an agency
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+          description: ''
+    patch:
+      operationId: providers_agencies_partial_update
+      description: |-
+        Visible only to its own members; `404` otherwise, so ids stay unconfirmable.
+
+        `verification_level` is absent from the writable fields on purpose — an agency that
+        could set its own level would lift every member's effective level with it.
+      summary: Read or edit an agency
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAgencyUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAgencyUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAgencyUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+          description: ''
+  /api/v1/providers/agencies/{id}/members/:
+    get:
+      operationId: providers_agencies_members_list
+      description: |-
+        Any member reads the roster; only an owner or manager adds to it.
+
+        Invitations are addressed by the phone number the provider signed up with — the only
+        identifier an agency admin plausibly knows for their own staff.
+      summary: List members or invite one
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - agencies
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgencyMembershipList'
+          description: ''
+    post:
+      operationId: providers_agencies_members_create
+      description: |-
+        Any member reads the roster; only an owner or manager adds to it.
+
+        Invitations are addressed by the phone number the provider signed up with — the only
+        identifier an agency admin plausibly knows for their own staff.
+      summary: List members or invite one
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgencyInviteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgencyInviteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgencyInviteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyInvite'
+          description: ''
+  /api/v1/providers/agencies/{id}/members/{membership_id}/:
+    patch:
+      operationId: providers_agencies_members_partial_update
+      description: |-
+        `DELETE` is both "remove this person" and "leave this agency".
+
+        Removal is a status change rather than a delete: an agency that could erase who worked
+        for it would erase the attribution the audit trail depends on.
+      summary: Change a member's role, or remove them
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMembershipRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMembershipRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMembershipRoleRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyMembership'
+          description: ''
+    delete:
+      operationId: providers_agencies_members_destroy
+      description: |-
+        `DELETE` is both "remove this person" and "leave this agency".
+
+        Removal is a status change rather than a delete: an agency that could erase who worked
+        for it would erase the attribution the audit trail depends on.
+      summary: Change a member's role, or remove them
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: membership_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyMembership'
+          description: ''
+  /api/v1/providers/memberships/:
+    get:
+      operationId: providers_memberships_list
+      description: Includes invitations not yet answered — which is the point of the
+        endpoint.
+      summary: My agency memberships and invitations
+      tags:
+      - agencies
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgencyMembership'
+          description: ''
+  /api/v1/providers/memberships/{id}/respond/:
+    post:
+      operationId: providers_memberships_respond_create
+      summary: Accept or decline an agency invitation
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - agencies
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipRespondRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MembershipRespondRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MembershipRespondRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyMembership'
+          description: ''
+  /api/v1/providers/profile/:
+    get:
+      operationId: providers_profile_retrieve
+      tags:
+      - providers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderProfile'
+          description: ''
+    put:
+      operationId: providers_profile_update
+      tags:
+      - providers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProviderProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProviderProfileRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderProfile'
+          description: ''
+    patch:
+      operationId: providers_profile_partial_update
+      tags:
+      - providers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderProfileRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderProfile'
+          description: ''
+  /api/v1/providers/services/:
+    get:
+      operationId: providers_services_list
+      description: Offerings are always scoped to the calling provider's own profile.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - providers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProviderServiceOfferingList'
+          description: ''
+    post:
+      operationId: providers_services_create
+      description: Offerings are always scoped to the calling provider's own profile.
+      tags:
+      - providers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderServiceOffering'
+          description: ''
+  /api/v1/providers/services/{id}/:
+    get:
+      operationId: providers_services_retrieve
+      description: Offerings are always scoped to the calling provider's own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - providers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderServiceOffering'
+          description: ''
+    put:
+      operationId: providers_services_update
+      description: Offerings are always scoped to the calling provider's own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - providers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProviderServiceOfferingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderServiceOffering'
+          description: ''
+    patch:
+      operationId: providers_services_partial_update
+      description: Offerings are always scoped to the calling provider's own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - providers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderServiceOfferingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderServiceOfferingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProviderServiceOfferingRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderServiceOffering'
+          description: ''
+    delete:
+      operationId: providers_services_destroy
+      description: Offerings are always scoped to the calling provider's own profile.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - providers
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/providers/verification/:
+    get:
+      operationId: providers_verification_retrieve
+      description: Read verification status, or submit documents for review — SPEC-013.
+      tags:
+      - providers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderVerificationStatus'
+          description: ''
+    post:
+      operationId: providers_verification_create
+      description: Read verification status, or submit documents for review — SPEC-013.
+      tags:
+      - providers
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProviderVerificationCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProviderVerificationCreateRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderVerificationCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderVerificationStatus'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/requests/create/:
+    post:
+      operationId: requests_create_create
+      description: Alias for creating a service request (same as ``POST /jobs/requests/``).
+      summary: Create service request
+      tags:
+      - requests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ServiceRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+          description: ''
+  /api/v1/reviews/:
+    get:
+      operationId: reviews_list
+      description: Reviews the caller wrote, plus reviews written about them as a
+        provider.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - reviews
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReviewList'
+          description: ''
+    post:
+      operationId: reviews_create
+      description: Reviews the caller wrote, plus reviews written about them as a
+        provider.
+      tags:
+      - reviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+          description: ''
+  /api/v1/services/nearby/:
+    get:
+      operationId: services_nearby_retrieve
+      description: |-
+        Active service categories plus available providers within radius of ``lat``/``lng``.
+
+        Authentication is required: the response contains providers' exact workshop
+        coordinates, which must not be enumerable by anonymous callers
+        (``specs/008-location.md`` SECGAP-008-1).
+      parameters:
+      - in: query
+        name: lat
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: lng
+        schema:
+          type: number
+          format: float
+        required: true
+      - in: query
+        name: provider_type
+        schema:
+          type: string
+        description: 'Restrict to a trade: mechanic | tow. Providers of type ''both''
+          always match.'
+      - in: query
+        name: radius_km
+        schema:
+          type: number
+          format: float
+          default: 50
+        description: Radius in km for counting nearby available providers (max 500)
+      tags:
+      - services
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicesNearbyResponse'
+          description: ''
+components:
+  schemas:
+    AdminJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        service_request:
+          type: string
+          format: uuid
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        provider_name:
+          type: string
+          readOnly: true
+        service_category_name:
+          type: string
+          nullable: true
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/JobStatusEnum'
+          readOnly: true
+        final_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        currency:
+          type: string
+          readOnly: true
+        auto_confirmed:
+          type: boolean
+          readOnly: true
+        accepted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        work_finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accepted_at
+      - auto_confirmed
+      - completed_at
+      - created_at
+      - currency
+      - customer_name
+      - final_amount
+      - id
+      - provider_name
+      - service_category_name
+      - service_request
+      - status
+      - work_finished_at
+    AdminStatsResponse:
+      type: object
+      properties:
+        users_total:
+          type: integer
+        customers:
+          type: integer
+        providers:
+          type: integer
+        verifications_pending:
+          type: integer
+        requests_open:
+          type: integer
+        jobs_active:
+          type: integer
+        jobs_awaiting_confirmation:
+          type: integer
+        jobs_completed:
+          type: integer
+        jobs_auto_confirmed:
+          type: integer
+        confirmed_amount_total:
+          type: string
+          nullable: true
+        currency:
+          type: string
+      required:
+      - confirmed_amount_total
+      - currency
+      - customers
+      - jobs_active
+      - jobs_auto_confirmed
+      - jobs_awaiting_confirmation
+      - jobs_completed
+      - providers
+      - requests_open
+      - users_total
+      - verifications_pending
+    AdminUser:
+      type: object
+      description: |-
+        A user as an operator needs to see them, and no more.
+
+        Deliberately omits `password`, tokens, and anything an operator has no business reading.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+          title: Email address
+        phone:
+          type: string
+          readOnly: true
+          nullable: true
+          title: Phone number
+        role:
+          allOf:
+          - $ref: '#/components/schemas/UserRoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_phone_verified:
+          type: boolean
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        provider_verification_level:
+          type: string
+          nullable: true
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - email
+      - first_name
+      - id
+      - is_active
+      - is_email_verified
+      - is_phone_verified
+      - last_name
+      - phone
+      - provider_verification_level
+      - role
+    AdminVerification:
+      type: object
+      description: |-
+        A submission awaiting review.
+
+        **The document images are not exposed.** They are purged on decision (SPEC-013 REQ-8), and
+        serving them through a JSON API would put identity documents behind nothing but a URL
+        (SEC-GAP-18). A reviewer opens them in Django admin, where access is at least
+        staff-gated — recorded as OQ-012-I rather than quietly solved the easy way.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_id:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_name:
+          type: string
+          readOnly: true
+        provider_type:
+          type: string
+          readOnly: true
+        current_level:
+          type: string
+          readOnly: true
+        requested_level:
+          allOf:
+          - $ref: '#/components/schemas/VerificationLevelEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationSubmissionStatusEnum'
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by_label:
+          type: string
+          nullable: true
+          readOnly: true
+        review_notes:
+          type: string
+          readOnly: true
+      required:
+      - current_level
+      - id
+      - provider_id
+      - provider_name
+      - provider_type
+      - requested_level
+      - review_notes
+      - reviewed_at
+      - reviewed_by_label
+      - status
+      - submitted_at
+    AdminVerificationReviewRequest:
+      type: object
+      properties:
+        approve:
+          type: boolean
+        notes:
+          type: string
+          default: ''
+          description: Shown to the provider when a submission is declined.
+          maxLength: 2000
+      required:
+      - approve
+    Agency:
+      type: object
+      description: Read shape. Everything here is read-only by construction.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        provider_type:
+          allOf:
+          - $ref: '#/components/schemas/ProviderTypeEnum'
+          readOnly: true
+        verification_level:
+          allOf:
+          - $ref: '#/components/schemas/VerificationLevelEnum'
+          readOnly: true
+          description: |-
+            Granted to the business; inherited by its active members.
+
+            * `none` - Not verified
+            * `phone` - Phone verified
+            * `documents` - Documents verified
+            * `ghana_card` - Ghana Card verified
+        contact_email:
+          type: string
+          format: email
+          readOnly: true
+        contact_phone:
+          type: string
+          readOnly: true
+        registration_number:
+          type: string
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+        my_role:
+          type: string
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - contact_email
+      - contact_phone
+      - created_at
+      - id
+      - member_count
+      - my_role
+      - name
+      - provider_type
+      - registration_number
+      - slug
+      - updated_at
+      - verification_level
+    AgencyCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        provider_type:
+          allOf:
+          - $ref: '#/components/schemas/ProviderTypeEnum'
+          default: mechanic
+        contact_email:
+          type: string
+          format: email
+          default: ''
+        contact_phone:
+          type: string
+          default: ''
+          maxLength: 20
+        registration_number:
+          type: string
+          default: ''
+          description: Registrar General's Department business registration, when
+            available.
+          maxLength: 64
+      required:
+      - name
+    AgencyInvite:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: The phone number the provider signed up with. Local `0…` numbers
+            are normalized.
+          maxLength: 20
+        role:
+          allOf:
+          - $ref: '#/components/schemas/AgencyInviteRoleEnum'
+          default: operator
+      required:
+      - phone
+    AgencyInviteRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          description: The phone number the provider signed up with. Local `0…` numbers
+            are normalized.
+          maxLength: 20
+        role:
+          allOf:
+          - $ref: '#/components/schemas/AgencyInviteRoleEnum'
+          default: operator
+      required:
+      - phone
+    AgencyInviteRoleEnum:
+      enum:
+      - manager
+      - operator
+      type: string
+      description: |-
+        * `manager` - Manager
+        * `operator` - Operator
+    AgencyMembership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agency:
+          type: string
+          format: uuid
+          readOnly: true
+        agency_name:
+          type: string
+          readOnly: true
+        provider:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/AgencyRoleEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AgencyMembershipStatusEnum'
+          readOnly: true
+        invited_at:
+          type: string
+          format: date-time
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        removed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - agency
+      - agency_name
+      - id
+      - invited_at
+      - joined_at
+      - provider
+      - provider_name
+      - removed_at
+      - role
+      - status
+    AgencyMembershipStatusEnum:
+      enum:
+      - invited
+      - active
+      - removed
+      type: string
+      description: |-
+        * `invited` - Invited
+        * `active` - Active
+        * `removed` - Removed
+    AgencyRoleEnum:
+      enum:
+      - owner
+      - manager
+      - operator
+      type: string
+      description: |-
+        * `owner` - Owner
+        * `manager` - Manager
+        * `operator` - Operator
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sender:
+          type: string
+          format: uuid
+          readOnly: true
+        body:
+          type: string
+          maxLength: 4000
+        image:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - sender
+    ChatMessageRequest:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 4000
+        image:
+          type: string
+          format: binary
+          nullable: true
+    ChatRoom:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        job:
+          type: string
+          format: uuid
+          readOnly: true
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - job
+      - messages
+    ChatRoomList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        job:
+          type: string
+          format: uuid
+          readOnly: true
+        job_status:
+          type: string
+          readOnly: true
+        service_request_id:
+          type: string
+          format: uuid
+          readOnly: true
+        contact_name:
+          type: string
+          description: Name of the *other* participant, resolved from the viewer's
+            side of the job.
+          readOnly: true
+        last_message:
+          type: string
+          nullable: true
+          readOnly: true
+        last_message_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - contact_name
+      - created_at
+      - id
+      - job
+      - job_status
+      - last_message
+      - last_message_at
+      - service_request_id
+    CustomerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        display_name:
+          type: string
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        vehicles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vehicle'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - updated_at
+      - vehicles
+    CustomerProfileRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+    DiagnosticsRequestRequest:
+      type: object
+      properties:
+        symptoms:
+          type: string
+          minLength: 1
+          description: Problem description
+        vehicle:
+          type: object
+          additionalProperties: {}
+          description: Optional e.g. {"make":"...","model":"..."}
+      required:
+      - symptoms
+    DiagnosticsResponse:
+      type: object
+      properties:
+        symptoms_received:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        matching_hook:
+          type: string
+      required:
+      - matching_hook
+      - suggestions
+      - symptoms_received
+    GoogleAuthRequestRequest:
+      type: object
+      properties:
+        id_token:
+          type: string
+          minLength: 1
+          description: Credential JWT from Google Identity Services
+        role:
+          $ref: '#/components/schemas/SignupRoleEnum'
+      required:
+      - id_token
+    GoogleAuthTokens:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        service:
+          type: string
+      required:
+      - service
+      - status
+    IdentifierTokenObtainPair:
+      type: object
+      description: |-
+        JWT from **identifier** (email or E.164 phone) + **password**.
+
+        Accepts **identifier** and/or legacy **email** / **phone** keys — first non-empty wins.
+      properties:
+        identifier:
+          type: string
+        email:
+          type: string
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 32
+    IssueRouteRequestRequest:
+      type: object
+      properties:
+        issue_text:
+          type: string
+          minLength: 1
+      required:
+      - issue_text
+    IssueRouteResponse:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
+        category_slug:
+          type: string
+          nullable: true
+        confidence:
+          type: number
+          format: double
+        method:
+          type: string
+        reason:
+          type: string
+      required:
+      - category_id
+      - category_slug
+      - confidence
+      - method
+      - reason
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        service_request:
+          type: string
+          format: uuid
+          readOnly: true
+        provider:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_name:
+          type: string
+          readOnly: true
+        provider_verification_level:
+          type: string
+          readOnly: true
+        customer_name:
+          type: string
+          readOnly: true
+        service_category_name:
+          type: string
+          nullable: true
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/JobStatusEnum'
+        accepted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        work_finished_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        final_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        currency:
+          type: string
+          readOnly: true
+        auto_confirmed:
+          type: boolean
+          readOnly: true
+        latest_quote:
+          allOf:
+          - $ref: '#/components/schemas/Quote'
+          nullable: true
+          readOnly: true
+        amount_variance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          readOnly: true
+        notes:
+          type: string
+          maxLength: 2000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - accepted_at
+      - amount_variance
+      - auto_confirmed
+      - completed_at
+      - created_at
+      - currency
+      - customer_name
+      - id
+      - latest_quote
+      - provider
+      - provider_name
+      - provider_verification_level
+      - service_category_name
+      - service_request
+      - updated_at
+      - work_finished_at
+    JobRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatusEnum'
+        final_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+    JobStatusEnum:
+      enum:
+      - pending_accept
+      - active
+      - awaiting_confirmation
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `pending_accept` - Pending accept
+        * `active` - Active
+        * `awaiting_confirmation` - Awaiting customer confirmation
+        * `completed` - Completed
+        * `cancelled` - Cancelled
+    KindEnum:
+      enum:
+      - request.accepted
+      - job.active
+      - quote.submitted
+      - quote.accepted
+      - quote.declined
+      - job.awaiting_confirmation
+      - job.completed
+      - job.cancelled
+      - job.auto_confirmed
+      - request.cancelled
+      - request.expired
+      - review.received
+      - agency.invited
+      - agency.invitation_answered
+      - agency.membership_ended
+      type: string
+      description: |-
+        * `request.accepted` - A provider accepted your request
+        * `job.active` - Your provider has started
+        * `quote.submitted` - You received a price quote
+        * `quote.accepted` - Your quote was accepted
+        * `quote.declined` - Your quote was declined
+        * `job.awaiting_confirmation` - Confirm the work and amount
+        * `job.completed` - Job completed
+        * `job.cancelled` - Job cancelled
+        * `job.auto_confirmed` - Job closed automatically
+        * `request.cancelled` - Request cancelled
+        * `request.expired` - Request expired
+        * `review.received` - You received a review
+        * `agency.invited` - You were invited to an agency
+        * `agency.invitation_answered` - An invitation was answered
+        * `agency.membership_ended` - You were removed from an agency
+    LoginIdentifierRequestRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Email or E.164 phone (preferred single field)
+        email:
+          type: string
+          description: Optional alias of identifier
+        phone:
+          type: string
+          description: Optional alias of identifier
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+    MatchingPreviewRequestRequest:
+      type: object
+      properties:
+        service_request_id:
+          type: string
+          format: uuid
+      required:
+      - service_request_id
+    MatchingPreviewResponse:
+      type: object
+      properties:
+        service_request_id:
+          type: string
+        ranked_providers:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - ranked_providers
+      - service_request_id
+    MembershipRespondRequest:
+      type: object
+      properties:
+        accept:
+          type: boolean
+      required:
+      - accept
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        body:
+          type: string
+          readOnly: true
+        payload:
+          readOnly: true
+        read_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - body
+      - created_at
+      - id
+      - kind
+      - payload
+      - read_at
+      - title
+    NotificationMarkReadResponse:
+      type: object
+      properties:
+        updated:
+          type: integer
+          description: Rows marked read
+        unread_count:
+          type: integer
+          description: Remaining unread notifications
+      required:
+      - unread_count
+      - updated
+    NotificationUnreadCountResponse:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+      required:
+      - unread_count
+    OTPSentResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    OTPVerifyTokens:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    PaginatedAdminJobList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminJob'
+    PaginatedAdminUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+    PaginatedAdminVerificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminVerification'
+    PaginatedAgencyMembershipList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgencyMembership'
+    PaginatedChatRoomListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatRoomList'
+    PaginatedJobList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedProviderServiceOfferingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderServiceOffering'
+    PaginatedQuoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+    PaginatedReviewList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+    PaginatedServiceCategoryMiniList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceCategoryMini'
+    PaginatedServiceRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceRequest'
+    PaginatedVehicleList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vehicle'
+    PatchedAgencyUpdateRequest:
+      type: object
+      description: |-
+        Same fields minus the slug, which is derived, and the verification level, which is
+        granted by platform review rather than claimed.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        contact_email:
+          type: string
+          format: email
+        contact_phone:
+          type: string
+          maxLength: 20
+        registration_number:
+          type: string
+          maxLength: 64
+    PatchedCustomerProfileRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+    PatchedJobRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/JobStatusEnum'
+        final_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+    PatchedMembershipRoleRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/AgencyRoleEnum'
+    PatchedProviderProfileRequest:
+      type: object
+      properties:
+        business_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        provider_type:
+          allOf:
+          - $ref: '#/components/schemas/ProviderTypeEnum'
+          description: |-
+            Trade this provider is in. Capability detail lives on service offerings.
+
+            * `mechanic` - Mechanic
+            * `tow` - Tow operator
+            * `both` - Mechanic and tow operator
+        bio:
+          type: string
+          maxLength: 2000
+        base_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        base_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        service_radius_km:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_available:
+          type: boolean
+    PatchedProviderServiceOfferingRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+        hourly_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Labour rate. Currency is undecided platform-wide — see ADR-006.
+        per_km_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Towing rate per kilometre. Same currency caveat as hourly_rate.
+        is_active:
+          type: boolean
+    PatchedServiceRequestRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+        destination_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        destination_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        preferred_vehicle:
+          type: string
+          format: uuid
+          nullable: true
+    PatchedUserRequest:
+      type: object
+      description: |-
+        Profile updates — identifier and role used at signup stay read-only here.
+
+        ``role`` is deliberately read-only: it decides which endpoints the account may reach
+        (including accepting jobs), so it is not a self-service field. Changing it requires
+        an administrator. See ``specs/001-authentication.md`` REQ-9.
+      properties:
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: binary
+          nullable: true
+    PatchedVehicleRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        make:
+          type: string
+          minLength: 1
+          maxLength: 80
+        model:
+          type: string
+          minLength: 1
+          maxLength: 80
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        trim:
+          type: string
+          maxLength: 120
+        color:
+          type: string
+          maxLength: 64
+        engine:
+          type: string
+          maxLength: 120
+        license_plate:
+          type: string
+          maxLength: 32
+        vin:
+          type: string
+          maxLength: 32
+        tire_size:
+          type: string
+          maxLength: 64
+        battery_group:
+          type: string
+          maxLength: 64
+        belt_part_number:
+          type: string
+          maxLength: 64
+        oil_spec:
+          type: string
+          maxLength: 64
+        coolant_type:
+          type: string
+          maxLength: 64
+        notes:
+          type: string
+          maxLength: 2000
+        extra: {}
+        is_primary:
+          type: boolean
+        photo:
+          type: string
+          format: binary
+          nullable: true
+    ProviderProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        business_name:
+          type: string
+          maxLength: 200
+        provider_type:
+          allOf:
+          - $ref: '#/components/schemas/ProviderTypeEnum'
+          description: |-
+            Trade this provider is in. Capability detail lives on service offerings.
+
+            * `mechanic` - Mechanic
+            * `tow` - Tow operator
+            * `both` - Mechanic and tow operator
+        bio:
+          type: string
+          maxLength: 2000
+        base_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        base_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        service_radius_km:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_available:
+          type: boolean
+        rating_avg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+        rating_count:
+          type: integer
+          readOnly: true
+        verification_level:
+          allOf:
+          - $ref: '#/components/schemas/VerificationLevelEnum'
+          readOnly: true
+          description: |-
+            Controls how precisely this provider sees customer locations (SPEC-013).
+
+            * `none` - Not verified
+            * `phone` - Phone verified
+            * `documents` - Documents verified
+            * `ghana_card` - Ghana Card verified
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - business_name
+      - created_at
+      - id
+      - rating_avg
+      - rating_count
+      - updated_at
+      - verification_level
+    ProviderProfileRequest:
+      type: object
+      properties:
+        business_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        provider_type:
+          allOf:
+          - $ref: '#/components/schemas/ProviderTypeEnum'
+          description: |-
+            Trade this provider is in. Capability detail lives on service offerings.
+
+            * `mechanic` - Mechanic
+            * `tow` - Tow operator
+            * `both` - Mechanic and tow operator
+        bio:
+          type: string
+          maxLength: 2000
+        base_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        base_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        service_radius_km:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_available:
+          type: boolean
+      required:
+      - business_name
+    ProviderServiceOffering:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          readOnly: true
+        category_slug:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+        hourly_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Labour rate. Currency is undecided platform-wide — see ADR-006.
+        per_km_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Towing rate per kilometre. Same currency caveat as hourly_rate.
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - category_name
+      - category_slug
+      - created_at
+      - id
+      - updated_at
+    ProviderServiceOfferingRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+        hourly_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Labour rate. Currency is undecided platform-wide — see ADR-006.
+        per_km_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+          description: Towing rate per kilometre. Same currency caveat as hourly_rate.
+        is_active:
+          type: boolean
+      required:
+      - category
+    ProviderTypeEnum:
+      enum:
+      - mechanic
+      - tow
+      - both
+      type: string
+      description: |-
+        * `mechanic` - Mechanic
+        * `tow` - Tow operator
+        * `both` - Mechanic and tow operator
+    ProviderVerificationCreateRequest:
+      type: object
+      properties:
+        id_document:
+          type: string
+          format: binary
+        selfie:
+          type: string
+          format: binary
+        workshop_photo:
+          type: string
+          format: binary
+      required:
+      - id_document
+      - selfie
+      - workshop_photo
+    ProviderVerificationStatus:
+      type: object
+      description: Everything a provider needs to understand where they stand and
+        what is missing.
+      properties:
+        verification_level:
+          type: string
+        exact_location_unlocked:
+          type: boolean
+        can_accept_jobs:
+          type: boolean
+        accept_requires_level:
+          type: string
+        profile_complete:
+          type: boolean
+        phone_verified:
+          type: boolean
+        missing_requirements:
+          type: array
+          items:
+            type: string
+        submission:
+          allOf:
+          - $ref: '#/components/schemas/ProviderVerificationSubmission'
+          nullable: true
+      required:
+      - accept_requires_level
+      - can_accept_jobs
+      - exact_location_unlocked
+      - missing_requirements
+      - phone_verified
+      - profile_complete
+      - submission
+      - verification_level
+    ProviderVerificationSubmission:
+      type: object
+      description: Status of a submission. Deliberately never exposes the uploaded
+        images.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        requested_level:
+          allOf:
+          - $ref: '#/components/schemas/VerificationLevelEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationSubmissionStatusEnum'
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        review_notes:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - requested_level
+      - review_notes
+      - reviewed_at
+      - status
+      - submitted_at
+    Quote:
+      type: object
+      description: |-
+        A price proposal. Read-only over the wire — quotes are created and answered
+        through their own endpoints so the state change goes through the service layer.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        job:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/QuoteStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        responded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - created_at
+      - currency
+      - id
+      - job
+      - notes
+      - responded_at
+      - status
+    QuoteCreateRequest:
+      type: object
+      description: |-
+        Provider input. ``currency`` is not accepted — it is the platform's, not the
+        caller's, so a client cannot quote in a currency nobody settles in.
+      properties:
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        notes:
+          type: string
+          default: ''
+          maxLength: 2000
+      required:
+      - amount
+    QuoteRespondRequest:
+      type: object
+      properties:
+        accept:
+          type: boolean
+      required:
+      - accept
+    QuoteStatusEnum:
+      enum:
+      - pending
+      - accepted
+      - declined
+      - superseded
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `accepted` - Accepted
+        * `declined` - Declined
+        * `superseded` - Superseded
+    Register:
+      type: object
+      description: 'Password sign-up: **email** and **phone** are both required (no
+        email OTP in MVP).'
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 32
+        role:
+          allOf:
+          - $ref: '#/components/schemas/SignupRoleEnum'
+          default: customer
+      required:
+      - email
+      - phone
+    RegisterEmailPhoneRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+          description: E.164 or local GH number
+        password:
+          type: string
+          minLength: 1
+        password_confirm:
+          type: string
+          minLength: 1
+        role:
+          $ref: '#/components/schemas/SignupRoleEnum'
+      required:
+      - email
+      - password
+      - password_confirm
+      - phone
+    Review:
+      type: object
+      description: |-
+        A customer's review of the provider who completed their job.
+
+        Eligibility (``specs/011-ratings-reviews.md`` REQ-1): the author must be the job's
+        customer, the job must be ``completed``, and one review per job per author.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        job:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_name:
+          type: string
+          readOnly: true
+        author:
+          type: string
+          format: uuid
+          readOnly: true
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        comment:
+          type: string
+          maxLength: 2000
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - created_at
+      - id
+      - job
+      - provider
+      - provider_name
+      - rating
+    ReviewRequest:
+      type: object
+      description: |-
+        A customer's review of the provider who completed their job.
+
+        Eligibility (``specs/011-ratings-reviews.md`` REQ-1): the author must be the job's
+        customer, the job must be ``completed``, and one review per job per author.
+      properties:
+        job:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+        comment:
+          type: string
+          maxLength: 2000
+      required:
+      - job
+      - rating
+    SendOTPRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          description: E.164 or local GH number, e.g. +233XXXXXXXXX
+          maxLength: 32
+      required:
+      - phone
+    ServiceCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        slug:
+          type: string
+          maxLength: 140
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+        keywords:
+          type: string
+          description: Comma-separated synonyms used by the issue router (e.g. battery,jump
+            start,alternator).
+        default_radius_km:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        priority:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        requires_destination:
+          type: boolean
+          description: This service relocates the vehicle, so a request must say where
+            to. Implies the job needs a tow-capable provider (SPEC-014 REQ-3).
+        is_active:
+          type: boolean
+      required:
+      - id
+      - name
+      - slug
+    ServiceCategoryMini:
+      type: object
+      description: |-
+        Minimal fields for endpoints like `/services/nearby/`.
+
+        ``requires_destination`` is included because a client cannot build a correct request
+        without it: these categories relocate the vehicle, so the request is rejected unless it
+        says where to. Omitting the flag left clients guessing, and the web app guessed wrong —
+        it never asked, so every tow request failed validation.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        slug:
+          type: string
+          maxLength: 140
+          pattern: ^[-a-zA-Z0-9_]+$
+        requires_destination:
+          type: boolean
+          description: This service relocates the vehicle, so a request must say where
+            to. Implies the job needs a tow-capable provider (SPEC-014 REQ-3).
+      required:
+      - id
+      - name
+      - slug
+    ServiceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category:
+          $ref: '#/components/schemas/ServiceCategory'
+        description:
+          type: string
+          maxLength: 2000
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+        destination_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        destination_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ServiceRequestStatusEnum'
+          readOnly: true
+        preferred_vehicle:
+          type: string
+          format: uuid
+          nullable: true
+        customer_name:
+          type: string
+          readOnly: true
+        vehicle_summary:
+          type: string
+          nullable: true
+          readOnly: true
+        distance_km:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - created_at
+      - customer_name
+      - description
+      - distance_km
+      - id
+      - latitude
+      - longitude
+      - status
+      - updated_at
+      - vehicle_summary
+    ServiceRequestRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+        longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+        destination_latitude:
+          type: number
+          format: double
+          maximum: 90.0
+          minimum: -90.0
+          nullable: true
+        destination_longitude:
+          type: number
+          format: double
+          maximum: 180.0
+          minimum: -180.0
+          nullable: true
+        preferred_vehicle:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - category
+      - description
+      - latitude
+      - longitude
+    ServiceRequestStatusEnum:
+      enum:
+      - draft
+      - open
+      - matching
+      - assigned
+      - cancelled
+      - completed
+      - expired
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `open` - Open
+        * `matching` - Matching
+        * `assigned` - Assigned
+        * `cancelled` - Cancelled
+        * `completed` - Completed
+        * `expired` - Expired
+    ServicesNearbyResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        nearby_providers_count:
+          type: integer
+        radius_km:
+          type: number
+          format: double
+        truncated:
+          type: boolean
+        providers:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - categories
+      - nearby_providers_count
+      - providers
+      - radius_km
+      - truncated
+    SignupRoleEnum:
+      enum:
+      - customer
+      - provider
+      type: string
+      description: |-
+        * `customer` - Customer
+        * `provider` - Service provider
+    TokenBlacklistRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - refresh
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    User:
+      type: object
+      description: |-
+        Profile updates — identifier and role used at signup stay read-only here.
+
+        ``role`` is deliberately read-only: it decides which endpoints the account may reach
+        (including accepting jobs), so it is not a self-service field. Changing it requires
+        an administrator. See ``specs/001-authentication.md`` REQ-9.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+          nullable: true
+          title: Phone number
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: Email address
+          maxLength: 254
+        role:
+          allOf:
+          - $ref: '#/components/schemas/UserRoleEnum'
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - id
+      - is_email_verified
+      - phone
+      - role
+    UserRequest:
+      type: object
+      description: |-
+        Profile updates — identifier and role used at signup stay read-only here.
+
+        ``role`` is deliberately read-only: it decides which endpoints the account may reach
+        (including accepting jobs), so it is not a self-service field. Changing it requires
+        an administrator. See ``specs/001-authentication.md`` REQ-9.
+      properties:
+        email:
+          type: string
+          format: email
+          nullable: true
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: binary
+          nullable: true
+    UserRoleEnum:
+      enum:
+      - customer
+      - provider
+      - admin
+      type: string
+      description: |-
+        * `customer` - Customer
+        * `provider` - Service provider
+        * `admin` - Admin
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          maxLength: 120
+        make:
+          type: string
+          maxLength: 80
+        model:
+          type: string
+          maxLength: 80
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        trim:
+          type: string
+          maxLength: 120
+        color:
+          type: string
+          maxLength: 64
+        engine:
+          type: string
+          maxLength: 120
+        license_plate:
+          type: string
+          maxLength: 32
+        vin:
+          type: string
+          maxLength: 32
+        tire_size:
+          type: string
+          maxLength: 64
+        battery_group:
+          type: string
+          maxLength: 64
+        belt_part_number:
+          type: string
+          maxLength: 64
+        oil_spec:
+          type: string
+          maxLength: 64
+        coolant_type:
+          type: string
+          maxLength: 64
+        notes:
+          type: string
+          maxLength: 2000
+        extra: {}
+        is_primary:
+          type: boolean
+        photo:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - make
+      - model
+      - updated_at
+    VehicleRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        make:
+          type: string
+          minLength: 1
+          maxLength: 80
+        model:
+          type: string
+          minLength: 1
+          maxLength: 80
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        trim:
+          type: string
+          maxLength: 120
+        color:
+          type: string
+          maxLength: 64
+        engine:
+          type: string
+          maxLength: 120
+        license_plate:
+          type: string
+          maxLength: 32
+        vin:
+          type: string
+          maxLength: 32
+        tire_size:
+          type: string
+          maxLength: 64
+        battery_group:
+          type: string
+          maxLength: 64
+        belt_part_number:
+          type: string
+          maxLength: 64
+        oil_spec:
+          type: string
+          maxLength: 64
+        coolant_type:
+          type: string
+          maxLength: 64
+        notes:
+          type: string
+          maxLength: 2000
+        extra: {}
+        is_primary:
+          type: boolean
+        photo:
+          type: string
+          format: binary
+          nullable: true
+      required:
+      - make
+      - model
+    VerificationLevelEnum:
+      enum:
+      - none
+      - phone
+      - documents
+      - ghana_card
+      type: string
+      description: |-
+        * `none` - Not verified
+        * `phone` - Phone verified
+        * `documents` - Documents verified
+        * `ghana_card` - Ghana Card verified
+    VerificationSubmissionStatusEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Pending review
+        * `approved` - Approved
+        * `rejected` - Rejected
+    VerifyOTPRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 32
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+        role:
+          allOf:
+          - $ref: '#/components/schemas/SignupRoleEnum'
+          description: |-
+            Set on first login when the account is created (default: customer).
+
+            * `customer` - Customer
+            * `provider` - Service provider
+      required:
+      - code
+      - phone
+    VerifyPhoneRequestRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+      - code
+    VerifyPhoneResponse:
+      type: object
+      properties:
+        is_phone_verified:
+          type: boolean
+      required:
+      - is_phone_verified
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

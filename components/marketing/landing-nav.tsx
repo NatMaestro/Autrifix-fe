@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
-  { href: "#drivers", label: "Drivers" },
-  { href: "#mechanics", label: "Mechanics" },
+  { href: "#customers", label: "Customers" },
+  { href: "#providers", label: "Providers" },
 ] as const;
 
 export function LandingNav() {

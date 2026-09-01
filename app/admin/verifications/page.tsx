@@ -1,95 +1,162 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BadgeCheck, Clock, ShieldAlert } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
+import { listVerifications, reviewVerification } from "@/services/administration";
+import { levelLabel } from "@/services/verification";
 
-const REQUESTS = [
-  {
-    name: "Marcus Sterling",
-    city: "San Francisco, CA",
-    quote: "15 years experience in German performance vehicles and electric drivetrains.",
-    tags: ["Diagnostics", "EV Specialist", "Transmission"],
-    status: "Background clear",
-  },
-  {
-    name: "Elena Rodriguez",
-    city: "Austin, TX",
-    quote: "Specializing in brake systems and suspension tuning for luxury SUVs.",
-    tags: ["Brakes", "Suspension", "Hybrid Gear"],
-    status: "Background pending",
-  },
-];
-
+/**
+ * The verification queue.
+ *
+ * This is the operator surface that matters most: verification decides who may attend a
+ * stranded customer, and until now it required a Django admin credential over the whole
+ * database. The queue is served oldest-first, because newest-first starves whoever has
+ * waited longest — which is the complaint verification delays actually generate.
+ *
+ * The submitted documents are **not** shown here. They are purged on decision and serving
+ * identity documents through a JSON API would protect them with nothing but a URL; a
+ * reviewer opens them in Django admin. Recorded as SPEC-012 OQ-012-I.
+ */
 export default function AdminVerificationsPage() {
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<"pending" | "approved" | "rejected">("pending");
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const queueQ = useQuery({
+    queryKey: ["admin-verifications", filter],
+    queryFn: () => listVerifications({ status: filter }),
+    staleTime: 15_000,
+  });
+
+  const reviewMut = useMutation({
+    mutationFn: ({ id, approve }: { id: string; approve: boolean }) =>
+      reviewVerification(id, { approve, notes: notes[id] ?? "" }),
+    onSuccess: (_data, { approve }) => {
+      qc.invalidateQueries({ queryKey: ["admin-verifications"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      toast.success(approve ? "Provider verified." : "Submission declined.");
+    },
+    onError: (error: unknown) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      const data = (error as { response?: { data?: { notes?: string[] } } })?.response?.data;
+      toast.error(
+        data?.notes?.[0] ??
+          (status === 409 ? "This submission was already reviewed." : "Could not save the review."),
+      );
+    },
+  });
+
+  const rows = queueQ.data ?? [];
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-sora text-6xl font-semibold text-white">Mechanic Verification</h1>
-          <p className="mt-1 text-lg text-white/60">
-            Reviewing pending professional service applications
+          <h1 className="font-sora text-6xl font-semibold text-white">Provider Verification</h1>
+          <p className="mt-1 text-white/55">
+            Decides who may accept jobs. Documents open in Django admin.
           </p>
         </div>
-        <div className="rounded-full border border-white/10 bg-[#253247]/85 p-1 text-sm">
-          <button className="rounded-full bg-white/10 px-4 py-2 text-white/85">All Requests</button>
-          <button className="rounded-full bg-[#1f5a49] px-4 py-2 text-[#8ef7bb]">Priority Review</button>
+        <div className="flex gap-2">
+          {(["pending", "approved", "rejected"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              className={`rounded-xl border px-3 py-1.5 text-sm capitalize transition-colors ${
+                filter === value
+                  ? "border-[#00E676]/70 bg-[#00E676]/10 text-white"
+                  : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
+              }`}
+            >
+              {value}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        {REQUESTS.map((r) => (
-          <GlassCard key={r.name} className="border-white/10 bg-[#253247]/90">
-            <div className="flex gap-3">
-              <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-[#49607a] to-[#1e2f44]" />
-              <div>
-                <p className="font-sora text-5xl text-white">{r.name}</p>
-                <p className="text-sm text-white/60">“{r.quote}”</p>
-                <p className="mt-2 text-sm text-white/70">{r.city}</p>
-                <p className={r.status.includes("clear") ? "text-[#8ef7bb]" : "text-[#f0ce87]"}>{r.status}</p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {r.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-white/10 px-2 py-1 text-[10px] uppercase text-white/70">
-                  {tag}
+      {queueQ.isLoading ? (
+        <p className="mt-6 text-sm text-white/50">Loading queue…</p>
+      ) : rows.length === 0 ? (
+        <GlassCard className="mt-6 border-white/10 bg-[#1f2c3f]/90">
+          <p className="text-white/60">
+            {filter === "pending"
+              ? "Nothing waiting. Providers appear here when they submit documents."
+              : `No ${filter} submissions.`}
+          </p>
+        </GlassCard>
+      ) : (
+        <div className="mt-6 space-y-3">
+          {rows.map((row) => (
+            <GlassCard key={row.id} className="border-white/10 bg-[#1f2c3f]/90">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-sora text-2xl font-semibold text-white">
+                    {row.provider_name || "Unnamed provider"}
+                  </p>
+                  <p className="mt-1 text-sm text-white/55">
+                    {row.provider_type} · currently {levelLabel(row.current_level)} · requesting{" "}
+                    {levelLabel(row.requested_level)}
+                  </p>
+                  <p className="mt-1 text-xs text-white/40">
+                    Submitted {new Date(row.submitted_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3 py-1 text-xs text-white/60">
+                  {row.status === "pending" ? (
+                    <Clock className="h-3 w-3" />
+                  ) : row.status === "approved" ? (
+                    <BadgeCheck className="h-3 w-3 text-[#00E676]" />
+                  ) : (
+                    <ShieldAlert className="h-3 w-3 text-amber-400" />
+                  )}
+                  {row.status}
                 </span>
-              ))}
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="h-24 rounded-xl bg-[#1d2b3d]" />
-              <div className="h-24 rounded-xl bg-[#1d2b3d]" />
-              <div className="h-24 rounded-xl bg-[#1d2b3d]" />
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button className="flex-1">Approve Application</Button>
-              <Button variant="ghost" className="flex-1">
-                Request More Info
-              </Button>
-              <Button variant="danger" className="!px-3">
-                ⊘
-              </Button>
-            </div>
-          </GlassCard>
-        ))}
-      </div>
+              </div>
 
-      <GlassCard className="mt-4 border-white/10 bg-[#203046]/90">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-white/45">Pending</p>
-            <p className="font-sora text-5xl text-white">12</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-white/45">Approved Today</p>
-            <p className="font-sora text-5xl text-[#8ef7bb]">45</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-white/45">Avg Time</p>
-            <p className="font-sora text-5xl text-white">2.4h</p>
-          </div>
-          <div className="justify-self-end">
-            <Button variant="ghost">Export Registry</Button>
-          </div>
+              {row.status === "pending" ? (
+                <div className="mt-4 space-y-2">
+                  <input
+                    value={notes[row.id] ?? ""}
+                    onChange={(e) => setNotes((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                    placeholder="Reason — required when declining, shown to the provider"
+                    className="w-full rounded-lg border border-white/15 bg-[#1b2739]/60 px-3 py-2 text-sm text-white/90 outline-none focus:border-white/35"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      disabled={reviewMut.isPending}
+                      onClick={() => reviewMut.mutate({ id: row.id, approve: true })}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={reviewMut.isPending}
+                      onClick={() => reviewMut.mutate({ id: row.id, approve: false })}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ) : row.review_notes ? (
+                <p className="mt-3 rounded-xl border border-white/10 bg-[#1b2739]/60 px-3 py-2 text-sm text-white/70">
+                  {row.review_notes}
+                  {row.reviewed_by_label ? (
+                    <span className="ml-1 text-white/40">— {row.reviewed_by_label}</span>
+                  ) : null}
+                </p>
+              ) : null}
+            </GlassCard>
+          ))}
         </div>
-      </GlassCard>
+      )}
     </div>
   );
 }

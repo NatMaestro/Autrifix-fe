@@ -24,10 +24,10 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [role, setRole] = useState<"driver" | "mechanic">("driver");
+  const [role, setRole] = useState<"customer" | "provider">("customer");
   useEffect(() => {
     const preset = searchParams.get("role");
-    if (preset === "mechanic" || preset === "driver") {
+    if (preset === "provider" || preset === "customer") {
       setRole(preset);
     }
   }, [searchParams]);
@@ -35,8 +35,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const mapRole = (r: string): UserRole => {
-    if (r === "mechanic" || r === "admin") return r;
-    return "driver";
+    if (r === "provider" || r === "admin") return r;
+    return "customer";
   };
 
   const finishWithTokens = useCallback(
@@ -49,7 +49,7 @@ export default function RegisterPage() {
           description: "Add your display name anytime under Profile.",
         });
       }
-      router.replace(me.role === "mechanic" ? "/mechanic" : "/driver");
+      router.replace(me.role === "provider" ? "/provider" : "/customer");
     },
     [router, setSession],
   );
@@ -169,7 +169,7 @@ export default function RegisterPage() {
           description: "Add your display name anytime under Profile.",
         });
       }
-      router.replace(user.role === "mechanic" ? "/mechanic" : "/driver");
+      router.replace(user.role === "provider" ? "/provider" : "/customer");
     } catch {
       toast.error("Could not register. That email or phone may already be in use, or the phone format is invalid.");
     } finally {
@@ -260,27 +260,27 @@ export default function RegisterPage() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setRole("driver")}
+              onClick={() => setRole("customer")}
               className={cn(
                 "rounded-2xl border px-3 py-3 text-sm font-medium transition-colors",
-                role === "driver"
+                role === "customer"
                   ? "border-[#00E676]/60 bg-[#00E676]/10 text-slate-900 dark:text-white"
                   : "border-slate-300/70 text-slate-600 dark:border-white/10 dark:text-white/60",
               )}
             >
-              Driver
+              Customer
             </button>
             <button
               type="button"
-              onClick={() => setRole("mechanic")}
+              onClick={() => setRole("provider")}
               className={cn(
                 "rounded-2xl border px-3 py-3 text-sm font-medium transition-colors",
-                role === "mechanic"
+                role === "provider"
                   ? "border-[#00E676]/60 bg-[#00E676]/10 text-slate-900 dark:text-white"
                   : "border-slate-300/70 text-slate-600 dark:border-white/10 dark:text-white/60",
               )}
             >
-              Mechanic
+              Provider
             </button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   TileLayer,
   Tooltip,
   useMap,
+  useMapEvents,
   ZoomControl,
 } from "react-leaflet";
 import { divIcon } from "leaflet";
@@ -28,6 +29,8 @@ type LatLng = { lat: number; lng: number };
 type Props = {
   center: LatLng;
   zoom?: number;
+  /** When provided, clicking the map reports the coordinate. */
+  onPick?: (point: LatLng) => void;
   markers?: MarkerPoint[];
   showUser?: boolean;
   routePath?: LatLng[];
@@ -63,6 +66,16 @@ function RecenterMapView({ center, zoom }: { center: LatLng; zoom: number }) {
   return null;
 }
 
+/** Reports map clicks upward. Rendered only when the caller wants point selection. */
+function ClickToPick({ onPick }: { onPick: (point: LatLng) => void }) {
+  useMapEvents({
+    click(event) {
+      onPick({ lat: event.latlng.lat, lng: event.latlng.lng });
+    },
+  });
+  return null;
+}
+
 export function LeafletMapInner({
   center,
   zoom = 13,
@@ -71,6 +84,7 @@ export function LeafletMapInner({
   routePath = [],
   useAutoRoute = true,
   theme = "dark",
+  onPick,
 }: Props) {
   const [autoRoutePath, setAutoRoutePath] = useState<LatLng[]>([]);
 
@@ -129,6 +143,7 @@ export function LeafletMapInner({
       className="leaflet-autrifix-map"
     >
       <RecenterMapView center={center} zoom={zoom} />
+      {onPick ? <ClickToPick onPick={onPick} /> : null}
       <ZoomControl position="bottomright" />
       <TileLayer attribution={tileAttribution} url={tileUrl} tileSize={mapboxToken ? 512 : 256} zoomOffset={mapboxToken ? -1 : 0} />
 

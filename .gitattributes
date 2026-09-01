@@ -1,0 +1,7 @@
+# Normalize line endings so the CI drift check compares content, not CRLF-vs-LF.
+# The generated API types are written on Windows and regenerated on Linux in CI; without
+# this, `git diff` reports every line as changed and the check fails for no real reason.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
